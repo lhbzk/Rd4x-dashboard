@@ -47,7 +47,9 @@ const Api = {
      ========================================================== */
 
   isMock() {
+
     return CONFIG.MOCK_MODE === true;
+
   },
 
 
@@ -142,6 +144,10 @@ const Api = {
   },
 
 
+  /* ==========================================================
+     REQUEST PRINCIPAL
+     ========================================================== */
+
   async _request(
     method,
     path,
@@ -182,7 +188,7 @@ const Api = {
           'application/json',
 
         'Accept':
-          'application/json'
+          'application/json, text/plain, */*'
 
       },
 
@@ -219,31 +225,60 @@ const Api = {
         await response.text();
 
 
+      /*
+       * Remove BOM e espaços desnecessários.
+       */
+      const cleanText =
+        String(text || '')
+          .replace(/^\uFEFF/, '')
+          .trim();
+
+
       let data = null;
 
 
-      try {
+      /*
+       * Resposta vazia.
+       */
+      if (!cleanText) {
 
-        data =
-          text
-            ? JSON.parse(text)
-            : null;
+        data = null;
 
-      } catch {
+      } else {
 
-        throw new Error(
-          `Resposta inválida da API em ${path}`
-        );
+        try {
+
+          data =
+            JSON.parse(cleanText);
+
+        } catch (parseError) {
+
+          console.error(
+            `[RD4X API] Resposta não-JSON em ${path}:`,
+            cleanText
+          );
+
+          throw new Error(
+            `A API retornou uma resposta inválida em ${path}.`
+          );
+
+        }
 
       }
 
 
+      /*
+       * Verifica HTTP somente depois
+       * de interpretar a resposta.
+       */
       if (!response.ok) {
 
         throw new Error(
+
           data?.error ||
           data?.message ||
           `HTTP ${response.status}`
+
         );
 
       }
@@ -378,6 +413,14 @@ const Api = {
     };
 
 
+    /*
+     * Administradores são carregados
+     * separadamente.
+     *
+     * Se esse endpoint falhar,
+     * a Visão Geral continua funcionando.
+     */
+
     try {
 
       adminsResponse =
@@ -385,12 +428,28 @@ const Api = {
           '/api/rd4x/admins'
         );
 
+
+      console.log(
+        '[RD4X] Administradores recebidos:',
+        adminsResponse
+      );
+
+
     } catch (error) {
 
       console.warn(
         '[RD4X] Não foi possível carregar administradores:',
         error
       );
+
+
+      adminsResponse = {
+
+        success: false,
+
+        data: []
+
+      };
 
     }
 
@@ -1719,4 +1778,4 @@ window.CONFIG =
   CONFIG;
 
 window.Api =
-  Api;
+  Api; 
