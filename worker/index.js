@@ -3,220 +3,118 @@ export default {
     const url = new URL(request.url);
 
     const routes = {
-      // ======================================================
-      // API RD4X — DASHBOARD
-      // ======================================================
+      "/api/rd4x/overview": "/api/dashboard/overview",
+      "/api/rd4x/admins": "/api/dashboard/admins",
+      "/api/rd4x/users": "/api/dashboard/users",
+      "/api/rd4x/tickets": "/api/dashboard/tickets",
+      "/api/rd4x/audit": "/api/dashboard/audit",
+      "/api/rd4x/incidents": "/api/dashboard/incidents",
+      "/api/rd4x/transcripts": "/api/dashboard/transcripts",
 
-      "/api/rd4x/overview":
-        "/api/dashboard/overview",
-
-      "/api/rd4x/admins":
-        "/api/dashboard/admins",
-
-      "/api/rd4x/users":
-        "/api/dashboard/users",
-
-      "/api/rd4x/tickets":
-        "/api/dashboard/tickets",
-
-      "/api/rd4x/audit":
-        "/api/dashboard/audit",
-
-      "/api/rd4x/releases":
-        "/api/dashboard/releases",
-
-      "/api/rd4x/release":
-        "/api/dashboard/release",
-
-      // ======================================================
-      // COMPATIBILIDADE COM FRONTEND ATUAL
-      // ======================================================
-
-      "/api/dashboard/overview":
-        "/api/dashboard/overview",
-
-      "/api/dashboard/admins":
-        "/api/dashboard/admins",
-
-      "/api/dashboard/users":
-        "/api/dashboard/users",
-
-      "/api/dashboard/tickets":
-        "/api/dashboard/tickets",
-
-      "/api/dashboard/audit":
-        "/api/dashboard/audit",
-
-      "/api/dashboard/releases":
-        "/api/dashboard/releases",
-
-      "/api/dashboard/release":
-        "/api/dashboard/release"
+      // Compatibilidade
+      "/api/dashboard/overview": "/api/dashboard/overview",
+      "/api/dashboard/admins": "/api/dashboard/admins",
+      "/api/dashboard/users": "/api/dashboard/users",
+      "/api/dashboard/tickets": "/api/dashboard/tickets",
+      "/api/dashboard/audit": "/api/dashboard/audit",
+      "/api/dashboard/incidents": "/api/dashboard/incidents",
+      "/api/dashboard/transcripts": "/api/dashboard/transcripts"
     };
 
-    const targetPath =
-      routes[url.pathname];
+    const targetPath = routes[url.pathname];
+
+    /*
+     * ============================================================
+     * API RD4X
+     * ============================================================
+     */
 
     if (targetPath) {
-
-      // ------------------------------------------------------
-      // MÉTODOS PERMITIDOS
-      // ------------------------------------------------------
-
-      const allowedMethods =
-        targetPath ===
-        "/api/dashboard/release"
-          ? ["GET", "POST"]
-          : ["GET"];
-
-      if (
-        !allowedMethods.includes(
-          request.method
-        )
-      ) {
+      if (request.method !== "GET") {
         return new Response(
           JSON.stringify({
-            success:false,
-            error:
-              "Método não permitido"
+            success: false,
+            error: "Método não permitido"
           }),
           {
-            status:405,
-
-            headers:{
-              "Content-Type":
-                "application/json"
+            status: 405,
+            headers: {
+              "Content-Type": "application/json; charset=utf-8"
             }
           }
         );
       }
 
-      // ------------------------------------------------------
-      // CONFIGURAÇÃO API
-      // ------------------------------------------------------
-
-      if (
-        !env.RD4X_API_URL
-      ) {
+      if (!env.RD4X_API_URL) {
         return new Response(
           JSON.stringify({
-            success:false,
-            error:
-              "RD4X_API_URL não configurada"
+            success: false,
+            error: "RD4X_API_URL não configurada"
           }),
           {
-            status:500,
-
-            headers:{
-              "Content-Type":
-                "application/json"
+            status: 500,
+            headers: {
+              "Content-Type": "application/json; charset=utf-8"
             }
           }
         );
       }
 
-      if (
-        !env.DASHBOARD_API_KEY
-      ) {
+      if (!env.DASHBOARD_API_KEY) {
         return new Response(
           JSON.stringify({
-            success:false,
-            error:
-              "DASHBOARD_API_KEY não configurada"
+            success: false,
+            error: "DASHBOARD_API_KEY não configurada"
           }),
           {
-            status:500,
-
-            headers:{
-              "Content-Type":
-                "application/json"
+            status: 500,
+            headers: {
+              "Content-Type": "application/json; charset=utf-8"
             }
           }
         );
       }
-
-      // ------------------------------------------------------
-      // FORWARD
-      // ------------------------------------------------------
 
       try {
         const apiUrl =
-          `${env.RD4X_API_URL}${targetPath}${url.search}`;
+          `${env.RD4X_API_URL}${targetPath}`;
 
         console.log(
-          `[WORKER] ${request.method} → ${apiUrl}`
+          `[WORKER] API → ${apiUrl}`
         );
 
-        const headers =
-          new Headers();
+        const response = await fetch(
+          apiUrl,
+          {
+            method: "GET",
 
-        headers.set(
-          "Authorization",
-          `Bearer ${env.DASHBOARD_API_KEY}`
-        );
+            headers: {
+              "Authorization":
+                `Bearer ${env.DASHBOARD_API_KEY}`,
 
-        headers.set(
-          "Accept",
-          "application/json"
-        );
-
-        // ----------------------------------------------------
-        // BODY PARA POST
-        // ----------------------------------------------------
-
-        let body = undefined;
-
-        if (
-          request.method !==
-          "GET"
-        ) {
-          body =
-            await request.text();
-
-          headers.set(
-            "Content-Type",
-            request.headers.get(
-              "Content-Type"
-            ) ||
-            "application/json"
-          );
-        }
-
-        // ----------------------------------------------------
-        // FETCH API RD4X
-        // ----------------------------------------------------
-
-        const response =
-          await fetch(
-            apiUrl,
-            {
-              method:
-                request.method,
-
-              headers,
-
-              body
+              "Accept":
+                "application/json"
             }
-          );
+          }
+        );
 
-        const responseBody =
+        const body =
           await response.text();
 
         return new Response(
-          responseBody,
+          body,
           {
-            status:
-              response.status,
+            status: response.status,
 
-            headers:{
+            headers: {
               "Content-Type":
                 response.headers.get(
                   "Content-Type"
                 ) ||
-                "application/json",
+                "application/json; charset=utf-8",
 
               "Cache-Control":
-                "no-store"
+                "no-store, no-cache, must-revalidate"
             }
           }
         );
@@ -230,38 +128,38 @@ export default {
 
         return new Response(
           JSON.stringify({
-            success:false,
+            success: false,
             error:
               "Erro ao conectar com a API RD4X"
           }),
           {
-            status:502,
+            status: 502,
 
-            headers:{
+            headers: {
               "Content-Type":
-                "application/json"
+                "application/json; charset=utf-8"
             }
           }
         );
       }
     }
 
-    // ========================================================
-    // ASSETS DO DASHBOARD
-    // ========================================================
+    /*
+     * ============================================================
+     * ASSETS DO DASHBOARD
+     * ============================================================
+     */
 
     if (env.ASSETS) {
-      return env.ASSETS.fetch(
-        request
-      );
+      return env.ASSETS.fetch(request);
     }
 
     return new Response(
       "RD4X Dashboard online, mas o binding ASSETS não foi encontrado.",
       {
-        status:500,
+        status: 500,
 
-        headers:{
+        headers: {
           "Content-Type":
             "text/plain; charset=utf-8"
         }
