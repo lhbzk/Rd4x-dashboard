@@ -2,6 +2,43 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+    if (request.method !== "GET") {
+      return new Response(
+        JSON.stringify({ error: "Método não permitido" }),
+        {
+          status: 405,
+          headers: {
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+
+    const routes = {
+      "/api/rd4x/overview": "/api/dashboard/overview",
+      "/api/rd4x/admins": "/api/dashboard/admins"
+    };
+
+    const targetPath = routes[url.pathname];
+
+    if (!targetPath) {
+      return new Response(
+        JSON.stringify({
+          error: "Endpoint não encontrado",
+          path: url.pathname
+        }),
+        {
+          status: 404,
+          headers: {
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+
     // Só permite GET
     if (request.method !== "GET") {
       return new Response(
