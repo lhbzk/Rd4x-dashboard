@@ -6,8 +6,8 @@
 'use strict';
 
 const CONFIG = {
-  MOCK_MODE: true,
-  API_BASE_URL: 'https://api.rd4x.example.com',
+  MOCK_MODE: false,
+  API_BASE_URL: 'https://rd4x-dashboard.ronaldoo-sev7n.workers.dev',
   REFRESH_INTERVAL: 30000,
   ENVIRONMENT: 'demo',
   DASHBOARD_VERSION: '10.0.0',
