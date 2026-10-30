@@ -53,8 +53,13 @@ const Api = {
     return this._computeMockOverview();
   }
 
-  const response = await this._request('GET', '/api/rd4x/overview');
-  const data = response?.data || {};
+  const [overviewResponse, adminsResponse] = await Promise.all([
+    this._request('GET', '/api/rd4x/overview'),
+    this._request('GET', '/api/rd4x/admins')
+  ]);
+
+  const data = overviewResponse?.data || {};
+  const admins = adminsResponse?.data || [];
 
   return {
     users: {
@@ -76,7 +81,7 @@ const Api = {
 
     releases: {
       total: data.execucoes || 0,
-      last24h: data.execucoes || 0,
+      last24h: 0,
       active: data.execucoes || 0,
       revoked: 0
     },
@@ -90,12 +95,23 @@ const Api = {
       active: 0
     },
 
-    admins: [],
+    admins: admins.map(admin => ({
+      id: admin.id,
+      discordId: admin.discordId,
+      name: admin.name,
+      tag: admin.tag,
+      avatar: admin.avatar,
+      role: admin.isOwner ? 'Dono' : 'Administrador',
+      status: admin.status || 'offline',
+      isOwner: Boolean(admin.isOwner)
+    })),
+
     recentActivity: [],
     recentTickets: [],
     recentReleases: [],
     recentIncidents: [],
     systemActivity: [],
+
     vendas: data.vendas || 0,
     faturamento: data.faturamento || 0
   };
