@@ -1,0 +1,134 @@
+/* ============================================================
+   RD4X DASHBOARD V10 — Responsive
+   ============================================================ */
+
+/* Large tablets */
+@media (max-width:1200px){
+  .grid-main{grid-template-columns:1fr}
+  .grid-3{grid-template-columns:repeat(2,1fr)}
+}
+
+/* Tablet — collapse sidebar */
+@media (max-width:900px){
+  :root{--sidebar-w:240px}
+  .menu-toggle{display:flex}
+  .sidebar{
+    position:fixed;
+    top:0;left:0;
+    height:100vh;height:100dvh;
+    transform:translateX(-100%);
+    box-shadow:var(--shadow-lg);
+  }
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-backdrop.open{display:block}
+  .content{padding:18px}
+  .search-wrap{max-width:none}
+  .grid-2{grid-template-columns:1fr}
+  .user-meta{display:none}
+  .kbd{display:none}
+  .search-input{padding-right:12px}
+}
+
+/* Small tablets / large phones */
+@media (max-width:640px){
+  .content{padding:14px}
+  .page-title{font-size:19px}
+  .stats-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .stat-card{padding:12px}
+  .stat-value{font-size:22px}
+  .stat-icon{width:28px;height:28px;top:10px;right:10px}
+  .stat-icon .icon{width:15px;height:15px}
+
+  .topbar{padding:0 12px;gap:8px}
+  .demo-pill{display:none}
+  .grid-3{grid-template-columns:1fr}
+  .modal{max-height:94vh;border-radius:12px}
+  .modal-body{padding:16px}
+  .modal-header{padding:14px 16px}
+  .modal-footer{padding:12px 16px;flex-wrap:wrap}
+  .modal-footer .btn{flex:1}
+
+  .table-toolbar{padding:10px 12px;gap:8px}
+  .table-toolbar .search-input{max-width:none;width:100%}
+  .filters{padding:12px;grid-template-columns:1fr 1fr}
+  thead th{padding:10px 10px;font-size:10.5px}
+  tbody td{padding:10px 10px;font-size:12.5px}
+  .cell-mono{font-size:11px}
+
+  .toast-root{left:12px;right:12px;top:12px}
+  .toast{max-width:none;min-width:0}
+
+  /* Cards inside table cells */
+  .hide-sm{display:none}
+}
+
+/* Small phones */
+@media (max-width:420px){
+  .stats-grid{grid-template-columns:1fr}
+  .filters{grid-template-columns:1fr}
+  .chart{height:150px}
+  .chart-labels{font-size:10px}
+  .page-header{flex-direction:column;align-items:stretch}
+  .page-header .btn{width:100%}
+}
+
+/* Horizontal scroll fallback for tables */
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.table-scroll table{min-width:640px}
+
+/* Prevent zoom on iOS inputs */
+@media (max-width:900px){
+  .input,.select,.search-input{font-size:16px}
+}
+/* ============================================================
+   RD4X — MOBILE SIDEBAR FINAL FIX
+   ============================================================ */
+
+@media (max-width: 900px) {
+
+  .sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+
+    width: 240px !important;
+    height: 100dvh !important;
+
+    transform: translateX(-100%) !important;
+
+    z-index: 10001 !important;
+
+    visibility: visible !important;
+    opacity: 1 !important;
+
+    transition: transform 0.25s ease !important;
+  }
+
+  .sidebar.open {
+    transform: translateX(0) !important;
+  }
+
+  .sidebar-backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+
+    z-index: 10000 !important;
+
+    display: none !important;
+
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+pointer-events: none !important;
+  .sidebar-backdrop.open {
+    display: block !important;
+  }
+
+  .menu-toggle {
+    display: flex !important;
+    position: relative !important;
+    z-index: 10002 !important;
+  }
+}
