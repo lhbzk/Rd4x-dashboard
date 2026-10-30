@@ -1,966 +1,864 @@
 /* ============================================================
-   RD4X DASHBOARD V10 — RELEASES
+   RD4X DASHBOARD V10 — Releases
+   Releases reais conectados à API RD4X
    ============================================================ */
 'use strict';
 
-window.renderReleases = async function (content, params = {}) {
-
-  content.innerHTML = `
-    <div class="page releases-page">
-
-      <div class="page-header">
-        <div>
-          <div class="page-title">
-            Releases
-          </div>
-
-          <div class="page-subtitle">
-            Gerenciamento e histórico das licenças liberadas.
-          </div>
-        </div>
-
-        <div class="page-header-actions">
-
-          <button
-            class="btn btn-secondary"
-            id="releases-refresh"
-          >
-            <svg class="icon">
-              <use href="#i-refresh"></use>
-            </svg>
-            Atualizar
-          </button>
-
-          <button
-            class="btn btn-primary"
-            id="release-new"
-          >
-            <svg class="icon">
-              <use href="#i-plus"></use>
-            </svg>
-            Nova release
-          </button>
-
-        </div>
-      </div>
-
-      <div
-        class="release-stats"
-        id="release-stats"
-      >
-        <div class="release-stat">
-          <div class="release-stat-label">
-            Total
-          </div>
-          <div class="release-stat-value">
-            —
-          </div>
-        </div>
-
-        <div class="release-stat">
-          <div class="release-stat-label">
-            Ativas
-          </div>
-          <div class="release-stat-value">
-            —
-          </div>
-        </div>
-
-        <div class="release-stat">
-          <div class="release-stat-label">
-            Permanentes
-          </div>
-          <div class="release-stat-value">
-            —
-          </div>
-        </div>
-
-        <div class="release-stat">
-          <div class="release-stat-label">
-            Faturamento
-          </div>
-          <div class="release-stat-value">
-            —
-          </div>
-        </div>
-      </div>
-
-      <section class="panel">
-
-        <div class="releases-toolbar">
-
-          <div class="release-search">
-            <svg class="icon">
-              <use href="#i-search"></use>
-            </svg>
-
-            <input
-              id="release-search"
-              type="text"
-              placeholder="Buscar por usuário, Discord ID..."
-              autocomplete="off"
-            >
-          </div>
-
-          <select
-            id="release-status"
-            class="select"
-          >
-            <option value="">
-              Todos os status
-            </option>
-
-            <option value="active">
-              Ativas
-            </option>
-
-            <option value="expired">
-              Expiradas
-            </option>
-
-            <option value="permanent">
-              Permanentes
-            </option>
-          </select>
-
-        </div>
-
-        <div id="releases-table">
-          <div class="loading-state">
-            Carregando releases...
-          </div>
-        </div>
-
-      </section>
-
-    </div>
-
-    <style>
-      .releases-page {
-        padding-bottom:40px;
-      }
-
-      .releases-page .page-header {
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        gap:16px;
-        margin-bottom:22px;
-      }
-
-      .page-header-actions {
-        display:flex;
-        gap:8px;
-      }
-
-      .release-stats {
-        display:grid;
-        grid-template-columns:
-          repeat(4, minmax(0, 1fr));
-        gap:12px;
-        margin-bottom:18px;
-      }
-
-      .release-stat {
-        padding:17px;
-        border:1px solid var(--border);
-        border-radius:14px;
-        background:var(--card);
-      }
-
-      .release-stat-label {
-        font-size:12px;
-        color:var(--text-secondary);
-        margin-bottom:8px;
-      }
-
-      .release-stat-value {
-        font-size:24px;
-        font-weight:700;
-        color:var(--text-primary);
-      }
-
-      .releases-toolbar {
-        display:flex;
-        align-items:center;
-        gap:10px;
-        padding:16px;
-        border-bottom:1px solid var(--border);
-        flex-wrap:wrap;
-      }
-
-      .release-search {
-        position:relative;
-        flex:1;
-        min-width:230px;
-      }
-
-      .release-search .icon {
-        position:absolute;
-        left:12px;
-        top:50%;
-        transform:translateY(-50%);
-        width:16px;
-        height:16px;
-        color:var(--text-secondary);
-      }
-
-      .release-search input {
-        width:100%;
-        height:40px;
-        padding:0 12px 0 38px;
-        border:1px solid var(--border);
-        border-radius:9px;
-        background:var(--background);
-        color:var(--text-primary);
-        outline:none;
-      }
-
-      .release-search input:focus {
-        border-color:var(--accent);
-      }
-
-      .select {
-        height:40px;
-        padding:0 12px;
-        border:1px solid var(--border);
-        border-radius:9px;
-        background:var(--background);
-        color:var(--text-primary);
-        outline:none;
-      }
-
-      .release-table-wrap {
-        width:100%;
-        overflow-x:auto;
-      }
-
-      .release-table {
-        width:100%;
-        min-width:850px;
-        border-collapse:collapse;
-      }
-
-      .release-table th {
-        padding:13px 16px;
-        text-align:left;
-        font-size:11px;
-        text-transform:uppercase;
-        letter-spacing:.04em;
-        color:var(--text-secondary);
-        border-bottom:1px solid var(--border);
-        white-space:nowrap;
-      }
-
-      .release-table td {
-        padding:14px 16px;
-        border-bottom:1px solid var(--border);
-        font-size:13px;
-        color:var(--text-primary);
-        vertical-align:middle;
-      }
-
-      .release-table tr:last-child td {
-        border-bottom:0;
-      }
-
-      .release-table tbody tr {
-        transition:.15s ease;
-      }
-
-      .release-table tbody tr:hover {
-        background:rgba(255,255,255,.025);
-      }
-
-      .release-user {
-        font-weight:600;
-      }
-
-      .release-discord {
-        margin-top:3px;
-        font-size:11px;
-        color:var(--text-secondary);
-      }
-
-      .release-status {
-        display:inline-flex;
-        align-items:center;
-        gap:6px;
-        padding:4px 8px;
-        border-radius:7px;
-        border:1px solid var(--border);
-        font-size:10px;
-        font-weight:600;
-      }
-
-      .release-status-dot {
-        width:6px;
-        height:6px;
-        border-radius:50%;
-        background:var(--text-secondary);
-      }
-
-      .release-status.active .release-status-dot {
-        background:var(--success);
-      }
-
-      .release-status.expired .release-status-dot {
-        background:var(--danger);
-      }
-
-      .release-status.permanent .release-status-dot {
-        background:var(--accent);
-      }
-
-      .release-expiration {
-        color:var(--text-secondary);
-        white-space:nowrap;
-      }
-
-      .release-price {
-        font-weight:600;
-      }
-
-      .release-empty {
-        padding:55px 20px;
-        text-align:center;
-        color:var(--text-secondary);
-      }
-
-      .release-empty-title {
-        margin-bottom:5px;
-        color:var(--text-primary);
-        font-size:15px;
-        font-weight:600;
-      }
-
-      .release-modal {
-        position:fixed;
-        inset:0;
-        z-index:9999;
-        display:none;
-        align-items:center;
-        justify-content:center;
-        padding:20px;
-        background:rgba(0,0,0,.65);
-      }
-
-      .release-modal.open {
-        display:flex;
-      }
-
-      .release-modal-box {
-        width:min(560px,100%);
-        max-height:90vh;
-        overflow:auto;
-        padding:22px;
-        border:1px solid var(--border);
-        border-radius:16px;
-        background:var(--card);
-        box-shadow:0 20px 60px rgba(0,0,0,.35);
-      }
-
-      .release-modal-header {
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        gap:12px;
-        margin-bottom:20px;
-      }
-
-      .release-modal-title {
-        font-size:18px;
-        font-weight:700;
-      }
-
-      .release-form {
-        display:grid;
-        gap:14px;
-      }
-
-      .release-field {
-        display:grid;
-        gap:6px;
-      }
-
-      .release-field label {
-        font-size:12px;
-        color:var(--text-secondary);
-      }
-
-      .release-field input,
-      .release-field select {
-        width:100%;
-        height:42px;
-        padding:0 12px;
-        border:1px solid var(--border);
-        border-radius:9px;
-        background:var(--background);
-        color:var(--text-primary);
-        outline:none;
-      }
-
-      .release-field input:focus,
-      .release-field select:focus {
-        border-color:var(--accent);
-      }
-
-      .release-form-actions {
-        display:flex;
-        justify-content:flex-end;
-        gap:8px;
-        margin-top:4px;
-      }
-
-      @media (max-width:900px) {
-        .release-stats {
-          grid-template-columns:
-            repeat(2, minmax(0, 1fr));
-        }
-      }
-
-      @media (max-width:600px) {
-        .releases-page .page-header {
-          align-items:flex-start;
-          flex-direction:column;
-        }
-
-        .page-header-actions {
-          width:100%;
-        }
-
-        .page-header-actions button {
-          flex:1;
-        }
-
-        .release-stats {
-          grid-template-columns:1fr 1fr;
-        }
-
-        .releases-toolbar {
-          align-items:stretch;
-        }
-
-        .release-search,
-        .select {
-          width:100%;
-        }
-      }
-    </style>
-
-    <div
-      class="release-modal"
-      id="release-modal"
-    >
-      <div class="release-modal-box">
-
-        <div class="release-modal-header">
-
-          <div class="release-modal-title">
-            Nova release
-          </div>
-
-          <button
-            class="btn btn-secondary"
-            id="release-modal-close"
-          >
-            Fechar
-          </button>
-
-        </div>
-
-        <form
-          class="release-form"
-          id="release-form"
-        >
-
-          <div class="release-field">
-            <label for="release-nick">
-              Usuário
-            </label>
-
-            <input
-              id="release-nick"
-              required
-              placeholder="Nick do usuário"
-            >
-          </div>
-
-          <div class="release-field">
-            <label for="release-discord">
-              Discord ID
-            </label>
-
-            <input
-              id="release-discord"
-              placeholder="ID do Discord"
-            >
-          </div>
-
-          <div class="release-field">
-            <label for="release-time">
-              Duração
-            </label>
-
-            <select id="release-time">
-              <option value="3d">
-                3 dias
-              </option>
-
-              <option value="7d">
-                7 dias
-              </option>
-
-              <option value="12d">
-                12 dias
-              </option>
-
-              <option value="30d">
-                30 dias
-              </option>
-
-              <option value="1m">
-                1 mês
-              </option>
-
-              <option value="2m">
-                2 meses
-              </option>
-
-              <option value="perm">
-                Permanente
-              </option>
-            </select>
-          </div>
-
-          <div class="release-field">
-            <label for="release-value">
-              Valor pago
-            </label>
-
-            <input
-              id="release-value"
-              type="number"
-              min="0"
-              step="0.01"
-              value="0"
-              placeholder="0,00"
-            >
-          </div>
-
-          <div class="release-form-actions">
-
-            <button
-              type="button"
-              class="btn btn-secondary"
-              id="release-cancel"
-            >
-              Cancelar
-            </button>
-
-            <button
-              type="submit"
-              class="btn btn-primary"
-            >
-              Liberar
-            </button>
-
-          </div>
-
-        </form>
-
-      </div>
-    </div>
-  `;
-
-  const escape =
-    value =>
-      Utils.escapeHtml(
-        value === null ||
-        value === undefined
-          ? ''
-          : String(value)
-      );
-
-  let releases = [];
-
-  function normalize(response) {
-    const data =
-      Array.isArray(response)
-        ? response
-        : response?.data;
-
-    if (!Array.isArray(data)) {
-      return [];
+window.renderReleases = async function renderReleases(
+  content,
+  params = {}
+) {
+  const state = {
+    data: [],
+    loading: true,
+    search: params.q || '',
+    filter: 'all'
+  };
+
+  const escape = value =>
+    typeof Utils !== 'undefined' &&
+    typeof Utils.escapeHtml === 'function'
+      ? Utils.escapeHtml(String(value ?? ''))
+      : String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+
+  const formatDate = value => {
+    if (!value) return '—';
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return escape(value);
     }
 
-    return data.map(item => ({
-      nick:
-        item.nick ||
-        item.username ||
-        item.user ||
-        '—',
+    return date.toLocaleString('pt-BR', {
+      dateStyle: 'short',
+      timeStyle: 'short'
+    });
+  };
 
+  const formatExpiration = value => {
+    if (value === 'perm') {
+      return {
+        text: 'Permanente',
+        className: 'release-permanent'
+      };
+    }
+
+    if (!value) {
+      return {
+        text: 'Sem informação',
+        className: 'release-unknown'
+      };
+    }
+
+    const timestamp =
+      typeof value === 'number'
+        ? value
+        : Number(value);
+
+    if (!Number.isFinite(timestamp)) {
+      return {
+        text: String(value),
+        className: 'release-unknown'
+      };
+    }
+
+    const restante = timestamp - Date.now();
+
+    if (restante <= 0) {
+      return {
+        text: 'Expirado',
+        className: 'release-expired'
+      };
+    }
+
+    const dias = Math.floor(
+      restante / 86400000
+    );
+
+    const horas = Math.floor(
+      (restante % 86400000) / 3600000
+    );
+
+    if (dias > 0) {
+      return {
+        text: `${dias}d ${horas}h restantes`,
+        className:
+          dias <= 2
+            ? 'release-warning'
+            : 'release-active'
+      };
+    }
+
+    const minutos = Math.floor(
+      (restante % 3600000) / 60000
+    );
+
+    return {
+      text: `${horas}h ${minutos}min restantes`,
+      className: 'release-warning'
+    };
+  };
+
+  const normalize = item => {
+    if (!item || typeof item !== 'object') {
+      return null;
+    }
+
+    const nick =
+      item.nick ||
+      item.username ||
+      item.user ||
+      item.name ||
+      'Desconhecido';
+
+    const expiration =
+      item.expiraEm ??
+      item.expiresAt ??
+      item.expiration ??
+      null;
+
+    const valor =
+      Number(
+        item.valor ??
+        item.valorPago ??
+        item.price ??
+        0
+      ) || 0;
+
+    const dataVenda =
+      item.dataVenda ||
+      item.createdAt ||
+      item.created_at ||
+      item.at ||
+      null;
+
+    const expirationInfo =
+      formatExpiration(expiration);
+
+    return {
+      ...item,
+
+      nick,
       discordId:
         item.discordId ||
         item.userId ||
         null,
 
-      expiraEm:
-        item.expiraEm ??
-        item.expiresAt ??
-        null,
+      expiraEm: expiration,
 
-      valorPago:
-        Number(
-          item.valorPago ??
-          item.valor ??
-          0
-        ),
+      valor,
+      dataVenda,
 
-      dataVenda:
-        item.dataVenda ||
-        item.createdAt ||
-        null,
+      expirationText:
+        expirationInfo.text,
 
-      hwid:
-        item.hwid ||
-        'LIVRE'
-    }));
-  }
-
-  function isPermanent(item) {
-    return (
-      item.expiraEm === 'perm' ||
-      item.expiraEm === 'permanente'
-    );
-  }
-
-  function isExpired(item) {
-    if (isPermanent(item)) {
-      return false;
-    }
-
-    if (
-      item.expiraEm === null ||
-      item.expiraEm === undefined ||
-      item.expiraEm === ''
-    ) {
-      return false;
-    }
-
-    const timestamp =
-      typeof item.expiraEm === 'number'
-        ? item.expiraEm
-        : new Date(item.expiraEm).getTime();
-
-    return (
-      !Number.isNaN(timestamp) &&
-      timestamp <= Date.now()
-    );
-  }
-
-  function getStatus(item) {
-    if (isPermanent(item)) {
-      return {
-        key:'permanent',
-        label:'Permanente'
-      };
-    }
-
-    if (isExpired(item)) {
-      return {
-        key:'expired',
-        label:'Expirada'
-      };
-    }
-
-    return {
-      key:'active',
-      label:'Ativa'
+      expirationClass:
+        expirationInfo.className
     };
-  }
+  };
 
-  function formatExpiration(value) {
-    if (
-      value === 'perm' ||
-      value === 'permanente'
-    ) {
-      return 'Permanente';
+  const getArray = response => {
+    if (!response) return [];
+
+    if (Array.isArray(response)) {
+      return response;
+    }
+
+    if (Array.isArray(response.data)) {
+      return response.data;
     }
 
     if (
-      value === null ||
-      value === undefined ||
-      value === ''
+      response.data &&
+      Array.isArray(response.data.data)
     ) {
-      return '—';
+      return response.data.data;
     }
 
-    const date =
-      typeof value === 'number'
-        ? new Date(value)
-        : new Date(value);
+    return [];
+  };
 
-    if (
-      Number.isNaN(
-        date.getTime()
-      )
-    ) {
-      return String(value);
-    }
-
-    return date.toLocaleString(
-      'pt-BR',
-      {
-        dateStyle:'short',
-        timeStyle:'short'
-      }
-    );
-  }
-
-  function formatCurrency(value) {
-    return Number(
-      value || 0
-    ).toLocaleString(
-      'pt-BR',
-      {
-        style:'currency',
-        currency:'BRL'
-      }
-    );
-  }
-
-  function renderStats() {
-    const total =
-      releases.length;
-
-    const active =
-      releases.filter(
-        item =>
-          getStatus(item).key === 'active'
-      ).length;
-
-    const permanent =
-      releases.filter(
-        item =>
-          getStatus(item).key === 'permanent'
-      ).length;
-
-    const revenue =
-      releases.reduce(
-        (sum, item) =>
-          sum + Number(
-            item.valorPago || 0
-          ),
-        0
-      );
-
-    const values =
-      document.querySelectorAll(
-        '#release-stats .release-stat-value'
-      );
-
-    if (values[0]) {
-      values[0].textContent =
-        total.toLocaleString('pt-BR');
-    }
-
-    if (values[1]) {
-      values[1].textContent =
-        active.toLocaleString('pt-BR');
-    }
-
-    if (values[2]) {
-      values[2].textContent =
-        permanent.toLocaleString('pt-BR');
-    }
-
-    if (values[3]) {
-      values[3].textContent =
-        formatCurrency(revenue);
-    }
-  }
-
-  function renderTable() {
+  const getFiltered = () => {
     const query =
-      document
-        .getElementById('release-search')
-        .value
+      state.search
         .trim()
         .toLowerCase();
 
-    const statusFilter =
-      document
-        .getElementById('release-status')
-        .value;
-
-    const filtered =
-      releases.filter(item => {
-
-        const status =
-          getStatus(item);
-
+    return state.data.filter(item => {
+      if (state.filter === 'active') {
         if (
-          statusFilter &&
-          status.key !== statusFilter
+          item.expiraEm !== 'perm' &&
+          (!Number.isFinite(
+            Number(item.expiraEm)
+          ) ||
+            Number(item.expiraEm) <= Date.now())
         ) {
           return false;
         }
+      }
 
-        if (!query) {
+      if (state.filter === 'expired') {
+        if (
+          item.expiraEm === 'perm' ||
+          !Number.isFinite(
+            Number(item.expiraEm)
+          ) ||
+          Number(item.expiraEm) > Date.now()
+        ) {
+          return false;
+        }
+      }
+
+      if (state.filter === 'permanent') {
+        if (item.expiraEm !== 'perm') {
+          return false;
+        }
+      }
+
+      if (!query) {
+        return true;
+      }
+
+      return [
+        item.nick,
+        item.discordId,
+        item.actorTag,
+        item.actor,
+        item.tempo,
+        item.expirationText
+      ]
+        .filter(Boolean)
+        .some(value =>
+          String(value)
+            .toLowerCase()
+            .includes(query)
+        );
+    });
+  };
+
+  const render = () => {
+    const filtered =
+      getFiltered();
+
+    const total =
+      state.data.length;
+
+    const permanent =
+      state.data.filter(
+        item =>
+          item.expiraEm === 'perm'
+      ).length;
+
+    const active =
+      state.data.filter(item => {
+        if (item.expiraEm === 'perm') {
           return true;
         }
 
-        const haystack =
-          [
-            item.nick,
-            item.discordId,
-            item.hwid,
-            status.label
-          ]
-          .join(' ')
-          .toLowerCase();
+        const timestamp =
+          Number(item.expiraEm);
 
-        return haystack.includes(query);
-      });
+        return (
+          Number.isFinite(timestamp) &&
+          timestamp > Date.now()
+        );
+      }).length;
 
-    const table =
-      document.getElementById(
-        'releases-table'
-      );
+    const expired =
+      total - active;
 
-    if (!filtered.length) {
-      table.innerHTML = `
-        <div class="release-empty">
+    content.innerHTML = `
+      <style>
+        .releases-page {
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
+        }
 
-          <div class="release-empty-title">
-            Nenhuma release encontrada
+        .releases-header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 16px;
+          flex-wrap: wrap;
+        }
+
+        .releases-title {
+          margin: 0;
+          font-size: 24px;
+          font-weight: 700;
+          color: var(--text);
+        }
+
+        .releases-subtitle {
+          margin-top: 5px;
+          color: var(--muted);
+          font-size: 13px;
+        }
+
+        .releases-actions {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .release-btn {
+          border: 1px solid var(--border);
+          background: var(--panel);
+          color: var(--text);
+          border-radius: 9px;
+          padding: 9px 13px;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 600;
+        }
+
+        .release-btn:hover {
+          border-color: var(--accent);
+        }
+
+        .release-btn.primary {
+          background: var(--accent);
+          color: #fff;
+          border-color: var(--accent);
+        }
+
+        .release-stats {
+          display: grid;
+          grid-template-columns:
+            repeat(4, minmax(0, 1fr));
+          gap: 12px;
+        }
+
+        .release-stat {
+          background: var(--panel);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 16px;
+        }
+
+        .release-stat-label {
+          color: var(--muted);
+          font-size: 12px;
+          margin-bottom: 8px;
+        }
+
+        .release-stat-value {
+          color: var(--text);
+          font-size: 22px;
+          font-weight: 700;
+        }
+
+        .release-toolbar {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          background: var(--panel);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 12px;
+        }
+
+        .release-search {
+          flex: 1;
+          min-width: 220px;
+          border: 1px solid var(--border);
+          background: var(--background, transparent);
+          color: var(--text);
+          border-radius: 8px;
+          padding: 10px 12px;
+          outline: none;
+        }
+
+        .release-search:focus {
+          border-color: var(--accent);
+        }
+
+        .release-filters {
+          display: flex;
+          gap: 6px;
+          flex-wrap: wrap;
+        }
+
+        .release-filter {
+          border: 1px solid var(--border);
+          background: transparent;
+          color: var(--muted);
+          border-radius: 8px;
+          padding: 8px 11px;
+          cursor: pointer;
+          font-size: 12px;
+        }
+
+        .release-filter.active {
+          color: var(--text);
+          border-color: var(--accent);
+          background: rgba(255,255,255,.04);
+        }
+
+        .release-table-wrap {
+          overflow-x: auto;
+          background: var(--panel);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+        }
+
+        .release-table {
+          width: 100%;
+          min-width: 820px;
+          border-collapse: collapse;
+        }
+
+        .release-table th {
+          text-align: left;
+          color: var(--muted);
+          font-size: 11px;
+          font-weight: 600;
+          padding: 13px 14px;
+          border-bottom: 1px solid var(--border);
+          white-space: nowrap;
+        }
+
+        .release-table td {
+          padding: 14px;
+          color: var(--text);
+          font-size: 13px;
+          border-bottom: 1px solid var(--border);
+          vertical-align: middle;
+        }
+
+        .release-table tr:last-child td {
+          border-bottom: 0;
+        }
+
+        .release-user {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+        }
+
+        .release-user-name {
+          font-weight: 650;
+        }
+
+        .release-user-id {
+          color: var(--muted);
+          font-size: 11px;
+        }
+
+        .release-badge {
+          display: inline-flex;
+          align-items: center;
+          border-radius: 999px;
+          padding: 5px 9px;
+          font-size: 11px;
+          font-weight: 650;
+          white-space: nowrap;
+        }
+
+        .release-active {
+          color: #4ade80;
+          background: rgba(74,222,128,.10);
+        }
+
+        .release-warning {
+          color: #fbbf24;
+          background: rgba(251,191,36,.10);
+        }
+
+        .release-expired {
+          color: #f87171;
+          background: rgba(248,113,113,.10);
+        }
+
+        .release-permanent {
+          color: #a78bfa;
+          background: rgba(167,139,250,.10);
+        }
+
+        .release-unknown {
+          color: var(--muted);
+          background: rgba(255,255,255,.05);
+        }
+
+        .release-empty {
+          padding: 45px 20px;
+          text-align: center;
+          color: var(--muted);
+        }
+
+        .release-empty strong {
+          display: block;
+          color: var(--text);
+          margin-bottom: 5px;
+        }
+
+        .release-loading {
+          padding: 35px;
+          text-align: center;
+          color: var(--muted);
+        }
+
+        .release-error {
+          padding: 18px;
+          border: 1px solid rgba(248,113,113,.25);
+          background: rgba(248,113,113,.07);
+          border-radius: 12px;
+          color: #fca5a5;
+        }
+
+        @media (max-width: 900px) {
+          .release-stats {
+            grid-template-columns:
+              repeat(2, minmax(0, 1fr));
+          }
+        }
+
+        @media (max-width: 560px) {
+          .release-stats {
+            grid-template-columns: 1fr;
+          }
+
+          .releases-title {
+            font-size: 21px;
+          }
+        }
+      </style>
+
+      <section class="releases-page">
+
+        <header class="releases-header">
+          <div>
+            <h1 class="releases-title">
+              Releases
+            </h1>
+
+            <div class="releases-subtitle">
+              Liberações de acesso registradas no RD4X.
+            </div>
           </div>
 
-          <div>
-            Não existem releases correspondentes
-            aos filtros atuais.
+          <div class="releases-actions">
+            <button
+              class="release-btn"
+              id="release-refresh"
+            >
+              Atualizar
+            </button>
+
+            <button
+              class="release-btn primary"
+              id="release-new"
+            >
+              Nova liberação
+            </button>
+          </div>
+        </header>
+
+        <div class="release-stats">
+
+          <div class="release-stat">
+            <div class="release-stat-label">
+              Total
+            </div>
+
+            <div class="release-stat-value">
+              ${total}
+            </div>
+          </div>
+
+          <div class="release-stat">
+            <div class="release-stat-label">
+              Ativos
+            </div>
+
+            <div class="release-stat-value">
+              ${active}
+            </div>
+          </div>
+
+          <div class="release-stat">
+            <div class="release-stat-label">
+              Permanentes
+            </div>
+
+            <div class="release-stat-value">
+              ${permanent}
+            </div>
+          </div>
+
+          <div class="release-stat">
+            <div class="release-stat-label">
+              Expirados
+            </div>
+
+            <div class="release-stat-value">
+              ${expired}
+            </div>
           </div>
 
         </div>
-      `;
 
-      return;
-    }
+        <div class="release-toolbar">
 
-    table.innerHTML = `
-      <div class="release-table-wrap">
+          <input
+            id="release-search"
+            class="release-search"
+            type="search"
+            placeholder="Pesquisar nick, Discord ou responsável..."
+            value="${escape(state.search)}"
+          />
 
-        <table class="release-table">
+          <div class="release-filters">
 
-          <thead>
-            <tr>
-              <th>Usuário</th>
-              <th>Status</th>
-              <th>Expiração</th>
-              <th>HWID</th>
-              <th>Valor</th>
-              <th>Venda</th>
-            </tr>
-          </thead>
+            <button
+              class="release-filter ${
+                state.filter === 'all'
+                  ? 'active'
+                  : ''
+              }"
+              data-filter="all"
+            >
+              Todos
+            </button>
 
-          <tbody>
+            <button
+              class="release-filter ${
+                state.filter === 'active'
+                  ? 'active'
+                  : ''
+              }"
+              data-filter="active"
+            >
+              Ativos
+            </button>
 
-            ${filtered.map(item => {
+            <button
+              class="release-filter ${
+                state.filter === 'permanent'
+                  ? 'active'
+                  : ''
+              }"
+              data-filter="permanent"
+            >
+              Permanentes
+            </button>
 
-              const status =
-                getStatus(item);
+            <button
+              class="release-filter ${
+                state.filter === 'expired'
+                  ? 'active'
+                  : ''
+              }"
+              data-filter="expired"
+            >
+              Expirados
+            </button>
 
-              return `
-                <tr>
+          </div>
+        </div>
 
-                  <td>
-                    <div class="release-user">
-                      ${escape(item.nick)}
-                    </div>
+        <div class="release-table-wrap">
 
-                    <div class="release-discord">
-                      ${
-                        item.discordId
-                          ? escape(item.discordId)
-                          : 'Discord ID não informado'
-                      }
-                    </div>
-                  </td>
+          ${
+            state.loading
+              ? `
+                <div class="release-loading">
+                  Carregando releases reais...
+                </div>
+              `
+              : filtered.length === 0
+                ? `
+                  <div class="release-empty">
+                    <strong>
+                      Nenhum release encontrado
+                    </strong>
 
-                  <td>
-                    <span
-                      class="release-status ${escape(
-                        status.key
-                      )}"
-                    >
-                      <span class="release-status-dot"></span>
-                      ${escape(status.label)}
-                    </span>
-                  </td>
+                    ${
+                      state.search ||
+                      state.filter !== 'all'
+                        ? 'Tente alterar os filtros.'
+                        : 'Ainda não existem liberações registradas.'
+                    }
+                  </div>
+                `
+                : `
+                  <table class="release-table">
 
-                  <td class="release-expiration">
-                    ${escape(
-                      formatExpiration(
-                        item.expiraEm
-                      )
-                    )}
-                  </td>
+                    <thead>
+                      <tr>
+                        <th>Usuário</th>
+                        <th>Status</th>
+                        <th>Duração</th>
+                        <th>Valor</th>
+                        <th>Data</th>
+                        <th>Discord</th>
+                      </tr>
+                    </thead>
 
-                  <td>
-                    ${escape(item.hwid)}
-                  </td>
+                    <tbody>
 
-                  <td class="release-price">
-                    ${escape(
-                      formatCurrency(
-                        item.valorPago
-                      )
-                    )}
-                  </td>
+                      ${filtered.map(item => `
+                        <tr>
 
-                  <td class="release-expiration">
-                    ${escape(
-                      formatExpiration(
-                        item.dataVenda
-                      )
-                    )}
-                  </td>
+                          <td>
+                            <div class="release-user">
 
-                </tr>
-              `;
-            }).join('')}
+                              <div class="release-user-name">
+                                ${escape(item.nick)}
+                              </div>
 
-          </tbody>
+                              ${
+                                item.actorTag
+                                  ? `
+                                    <div class="release-user-id">
+                                      por ${escape(item.actorTag)}
+                                    </div>
+                                  `
+                                  : ''
+                              }
 
-        </table>
+                            </div>
+                          </td>
 
-      </div>
+                          <td>
+                            <span
+                              class="release-badge ${item.expirationClass}"
+                            >
+                              ${escape(item.expirationText)}
+                            </span>
+                          </td>
+
+                          <td>
+                            ${
+                              item.expiraEm === 'perm'
+                                ? 'Permanente'
+                                : item.tempo
+                                  ? escape(item.tempo)
+                                  : item.expiraEm
+                                    ? formatDate(item.expiraEm)
+                                    : '—'
+                            }
+                          </td>
+
+                          <td>
+                            ${
+                              item.valor > 0
+                                ? `R$ ${item.valor.toFixed(2).replace('.', ',')}`
+                                : '—'
+                            }
+                          </td>
+
+                          <td>
+                            ${formatDate(item.dataVenda)}
+                          </td>
+
+                          <td>
+                            ${
+                              item.discordId
+                                ? escape(item.discordId)
+                                : '—'
+                            }
+                          </td>
+
+                        </tr>
+                      `).join('')}
+
+                    </tbody>
+
+                  </table>
+                `
+          }
+
+        </div>
+
+      </section>
     `;
-  }
 
-  async function load() {
-    const table =
+    const search =
       document.getElementById(
-        'releases-table'
+        'release-search'
       );
 
-    table.innerHTML = `
-      <div class="loading-state">
-        Carregando releases reais...
-      </div>
-    `;
+    if (search) {
+      search.addEventListener(
+        'input',
+        () => {
+          state.search = search.value;
+          render();
+        }
+      );
+    }
+
+    document
+      .querySelectorAll(
+        '.release-filter'
+      )
+      .forEach(button => {
+        button.addEventListener(
+          'click',
+          () => {
+            state.filter =
+              button.dataset.filter ||
+              'all';
+
+            render();
+          }
+        );
+      });
+
+    const refresh =
+      document.getElementById(
+        'release-refresh'
+      );
+
+    if (refresh) {
+      refresh.addEventListener(
+        'click',
+        load
+      );
+    }
+
+    const newButton =
+      document.getElementById(
+        'release-new'
+      );
+
+    if (newButton) {
+      newButton.addEventListener(
+        'click',
+        () => {
+          Notifications.info(
+            'O formulário de nova liberação será conectado na etapa de Ações Administrativas.'
+          );
+        }
+      );
+    }
+  };
+
+  async function load() {
+    state.loading = true;
+    render();
 
     try {
       const response =
         await Api.getReleases();
 
-      releases =
-        normalize(response);
+      state.data =
+        getArray(response)
+          .map(normalize)
+          .filter(Boolean);
 
-      renderStats();
-      renderTable();
+      state.loading = false;
+      render();
 
     } catch (error) {
       console.error(
@@ -968,169 +866,57 @@ window.renderReleases = async function (content, params = {}) {
         error
       );
 
-      table.innerHTML = `
-        <div class="release-empty">
+      state.loading = false;
 
-          <div
-            class="release-empty-title"
-            style="color:var(--danger)"
-          >
-            Não foi possível carregar as releases
-          </div>
+      content.innerHTML = `
+        <style>
+          .release-error-page {
+            padding: 25px;
+          }
 
-          <div>
+          .release-error {
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(248,113,113,.25);
+            background: rgba(248,113,113,.07);
+            color: #fca5a5;
+          }
+
+          .release-error strong {
+            display: block;
+            color: var(--text);
+            margin-bottom: 6px;
+          }
+        </style>
+
+        <div class="release-error-page">
+
+          <div class="release-error">
+
+            <strong>
+              Não foi possível carregar os Releases.
+            </strong>
+
             ${escape(
               error?.message ||
-              'Erro desconhecido'
+              'Erro desconhecido.'
             )}
+
           </div>
 
         </div>
       `;
 
-      Notifications.error(
-        'Erro ao carregar releases.'
-      );
+      if (
+        typeof Notifications !== 'undefined' &&
+        typeof Notifications.error === 'function'
+      ) {
+        Notifications.error(
+          'Erro ao carregar Releases.'
+        );
+      }
     }
   }
-
-  function openModal() {
-    document
-      .getElementById('release-modal')
-      .classList.add('open');
-  }
-
-  function closeModal() {
-    document
-      .getElementById('release-modal')
-      .classList.remove('open');
-  }
-
-  document
-    .getElementById('release-refresh')
-    .addEventListener(
-      'click',
-      load
-    );
-
-  document
-    .getElementById('release-search')
-    .addEventListener(
-      'input',
-      renderTable
-    );
-
-  document
-    .getElementById('release-status')
-    .addEventListener(
-      'change',
-      renderTable
-    );
-
-  document
-    .getElementById('release-new')
-    .addEventListener(
-      'click',
-      openModal
-    );
-
-  document
-    .getElementById('release-modal-close')
-    .addEventListener(
-      'click',
-      closeModal
-    );
-
-  document
-    .getElementById('release-cancel')
-    .addEventListener(
-      'click',
-      closeModal
-    );
-
-  document
-    .getElementById('release-modal')
-    .addEventListener(
-      'click',
-      event => {
-        if (
-          event.target.id ===
-          'release-modal'
-        ) {
-          closeModal();
-        }
-      }
-    );
-
-  document
-    .getElementById('release-form')
-    .addEventListener(
-      'submit',
-      async event => {
-        event.preventDefault();
-
-        const nick =
-          document
-            .getElementById('release-nick')
-            .value
-            .trim();
-
-        const discordId =
-          document
-            .getElementById('release-discord')
-            .value
-            .trim();
-
-        const tempo =
-          document
-            .getElementById('release-time')
-            .value;
-
-        const valor =
-          Number(
-            document
-              .getElementById('release-value')
-              .value || 0
-          );
-
-        if (!nick) {
-          Notifications.error(
-            'Informe o usuário.'
-          );
-          return;
-        }
-
-        try {
-          await Api.postRelease({
-            nick,
-            discordId,
-            tempo,
-            valor
-          });
-
-          Notifications.success(
-            'Release criada com sucesso.'
-          );
-
-          closeModal();
-
-          event.target.reset();
-
-          await load();
-
-        } catch (error) {
-          console.error(
-            '[RELEASE CREATE]',
-            error
-          );
-
-          Notifications.error(
-            error?.message ||
-            'Não foi possível criar a release.'
-          );
-        }
-      }
-    );
 
   await load();
 };
