@@ -53,7 +53,52 @@ const Api = {
     return this._computeMockOverview();
   }
 
-  return this._request('GET', '/api/rd4x/overview');
+  const response = await this._request('GET', '/api/rd4x/overview');
+  const data = response?.data || {};
+
+  return {
+    users: {
+      total: data.ativos || 0,
+      active: data.ativos || 0,
+      blacklisted: 0,
+      suspended: 0,
+      expired: 0
+    },
+
+    tickets: {
+      total: data.ticketsAbertos || 0,
+      open: data.ticketsAbertos || 0,
+      inProgress: 0,
+      waitingUser: 0,
+      resolved: 0,
+      closed: 0
+    },
+
+    releases: {
+      total: data.execucoes || 0,
+      last24h: data.execucoes || 0,
+      active: data.execucoes || 0,
+      revoked: 0
+    },
+
+    incidents: {
+      total: data.incidentesAbertos || 0,
+      open: data.incidentesAbertos || 0
+    },
+
+    hwid: {
+      active: 0
+    },
+
+    admins: [],
+    recentActivity: [],
+    recentTickets: [],
+    recentReleases: [],
+    recentIncidents: [],
+
+    vendas: data.vendas || 0,
+    faturamento: data.faturamento || 0
+  };
 },
   async getUsers(params = {}) {
     if (CONFIG.MOCK_MODE) { await this._delay(180); return MockData.users.slice(); }
