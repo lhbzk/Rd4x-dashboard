@@ -1,9 +1,12 @@
 /* ============================================================
-   RD4X DASHBOARD V10 — App Router & Shell
+   RD4X DASHBOARD V10
+   App Router & Shell
    ============================================================ */
+
 'use strict';
 
 const App = {
+
   pages: {
     overview: window.renderOverview,
     search: window.renderSearch,
@@ -29,10 +32,14 @@ const App = {
       document.getElementById('sidebar');
 
     const backdrop =
-      document.getElementById('sidebar-backdrop');
+      document.getElementById(
+        'sidebar-backdrop'
+      );
 
     const btn =
-      document.getElementById('menu-toggle');
+      document.getElementById(
+        'menu-toggle'
+      );
 
     const close = () => {
       if (sidebar) {
@@ -45,86 +52,125 @@ const App = {
     };
 
     if (btn) {
-      btn.addEventListener('click', () => {
-        if (sidebar) {
-          sidebar.classList.toggle('open');
-        }
-
-        if (backdrop) {
-          backdrop.classList.toggle('open');
-        }
-      });
-    }
-
-    if (backdrop) {
-      backdrop.addEventListener('click', close);
-    }
-
-    document.querySelectorAll('.nav-item')
-      .forEach(a => {
-        a.addEventListener('click', () => {
-          if (window.innerWidth <= 900) {
-            close();
+      btn.addEventListener(
+        'click',
+        () => {
+          if (sidebar) {
+            sidebar.classList.toggle(
+              'open'
+            );
           }
-        });
-      });
-  },
 
-  setupTopbar() {
-    const searchInput =
-      document.getElementById('global-search');
-
-    if (searchInput) {
-      searchInput.addEventListener(
-        'keydown',
-        e => {
-          if (e.key !== 'Enter') return;
-
-          const q =
-            searchInput.value.trim();
-
-          if (q) {
-            window.location.hash =
-              `#/search?q=${encodeURIComponent(q)}`;
-
-            searchInput.value = '';
-          } else {
-            window.location.hash = '#/search';
+          if (backdrop) {
+            backdrop.classList.toggle(
+              'open'
+            );
           }
         }
       );
     }
 
-    const userBtn =
-      document.getElementById('user-btn');
+    if (backdrop) {
+      backdrop.addEventListener(
+        'click',
+        close
+      );
+    }
 
-    if (userBtn) {
-      userBtn.addEventListener('click', () => {
-        Notifications.info(
-          'Perfil administrativo — autenticação será integrada futuramente.'
+    document
+      .querySelectorAll('.nav-item')
+      .forEach(item => {
+        item.addEventListener(
+          'click',
+          () => {
+            if (
+              window.innerWidth <= 900
+            ) {
+              close();
+            }
+          }
         );
       });
+  },
+
+  setupTopbar() {
+    const searchInput =
+      document.getElementById(
+        'global-search'
+      );
+
+    if (searchInput) {
+      searchInput.addEventListener(
+        'keydown',
+        event => {
+          if (
+            event.key !== 'Enter'
+          ) {
+            return;
+          }
+
+          const query =
+            searchInput.value.trim();
+
+          if (query) {
+            window.location.hash =
+              `#/search?q=${
+                encodeURIComponent(
+                  query
+                )
+              }`;
+
+            searchInput.value = '';
+
+          } else {
+            window.location.hash =
+              '#/search';
+          }
+        }
+      );
+    }
+
+    const userButton =
+      document.getElementById(
+        'user-btn'
+      );
+
+    if (userButton) {
+      userButton.addEventListener(
+        'click',
+        () => {
+          Notifications.info(
+            'Perfil administrativo — autenticação será integrada futuramente.'
+          );
+        }
+      );
     }
   },
 
   setupKeyboard() {
     document.addEventListener(
       'keydown',
-      e => {
+      event => {
+        const active =
+          document.activeElement;
+
+        const tag =
+          active?.tagName;
+
         if (
-          e.key === '/' &&
+          event.key === '/' &&
           ![
             'INPUT',
             'TEXTAREA',
             'SELECT'
-          ].includes(
-            document.activeElement.tagName
-          )
+          ].includes(tag)
         ) {
-          e.preventDefault();
+          event.preventDefault();
 
           const input =
-            document.getElementById('global-search');
+            document.getElementById(
+              'global-search'
+            );
 
           if (input) {
             input.focus();
@@ -152,7 +198,10 @@ const App = {
     ] = raw.split('?');
 
     const page =
-      (pathPart || 'overview')
+      (
+        pathPart ||
+        'overview'
+      )
         .split('/')[0] ||
       'overview';
 
@@ -161,15 +210,31 @@ const App = {
     if (queryPart) {
       new URLSearchParams(
         queryPart
-      ).forEach((value, key) => {
-        params[key] = value;
-      });
+      ).forEach(
+        (value, key) => {
+          params[key] = value;
+        }
+      );
     }
 
     return {
       page,
       params
     };
+  },
+
+  updateActiveNavigation(
+    currentPage
+  ) {
+    document
+      .querySelectorAll('.nav-item')
+      .forEach(item => {
+        item.classList.toggle(
+          'active',
+          item.dataset.route ===
+            currentPage
+        );
+      });
   },
 
   async route() {
@@ -179,11 +244,15 @@ const App = {
     } = this.parseHash();
 
     const content =
-      document.getElementById('content');
+      document.getElementById(
+        'content'
+      );
 
-    if (!content) return;
+    if (!content) {
+      return;
+    }
 
-    const known = [
+    const knownPages = [
       'overview',
       'search',
       'users',
@@ -196,26 +265,29 @@ const App = {
     ];
 
     const currentPage =
-      known.includes(page)
+      knownPages.includes(page)
         ? page
         : 'overview';
 
-    document.querySelectorAll('.nav-item')
-      .forEach(a => {
-        a.classList.toggle(
-          'active',
-          a.dataset.route === currentPage
-        );
-      });
+    this.updateActiveNavigation(
+      currentPage
+    );
 
     content.scrollTop = 0;
 
     try {
-      const fn =
+      const pageRenderer =
         this.pages[currentPage];
 
-      if (typeof fn === 'function') {
-        await fn(content, params);
+      if (
+        typeof pageRenderer ===
+        'function'
+      ) {
+        await pageRenderer(
+          content,
+          params
+        );
+
       } else {
         content.innerHTML = `
           <div class="empty-state">
@@ -224,13 +296,21 @@ const App = {
         `;
       }
 
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(
+        '[APP ROUTER]',
+        error
+      );
+
+      const message =
+        error?.message ||
+        'Erro desconhecido';
 
       content.innerHTML = `
         <div class="empty-state">
+
           <svg class="icon">
-            <use href="#i-alert"/>
+            <use href="#i-alert"></use>
           </svg>
 
           <div
@@ -238,29 +318,41 @@ const App = {
               font-size:15px;
               font-weight:600;
               color:var(--danger);
-              margin-bottom:4px
+              margin-bottom:4px;
             "
           >
             Erro ao carregar página
           </div>
 
           <div>
-            ${Utils.escapeHtml(
-              err.message ||
-              'Erro desconhecido'
-            )}
+            ${
+              window.Utils?.escapeHtml
+                ? Utils.escapeHtml(
+                    message
+                  )
+                : message
+            }
           </div>
+
         </div>
       `;
 
-      Notifications.error(
-        'Erro ao conectar. Tentando novamente.'
-      );
+      if (
+        window.Notifications &&
+        typeof Notifications.error ===
+          'function'
+      ) {
+        Notifications.error(
+          'Erro ao carregar a página.'
+        );
+      }
     }
 
     document.title =
       `RD4X Dashboard V10 · ${
-        currentPage.charAt(0).toUpperCase() +
+        currentPage
+          .charAt(0)
+          .toUpperCase() +
         currentPage.slice(1)
       }`;
   }
@@ -271,8 +363,14 @@ document.addEventListener(
   () => {
     App.init();
 
-    Notifications.info(
-      'Dashboard conectado à API RD4X.'
-    );
+    if (
+      window.Notifications &&
+      typeof Notifications.info ===
+        'function'
+    ) {
+      Notifications.info(
+        'Dashboard conectado à API RD4X.'
+      );
+    }
   }
 );
