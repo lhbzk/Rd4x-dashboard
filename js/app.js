@@ -1,12 +1,9 @@
 /* ============================================================
-   RD4X DASHBOARD V10
-   App Router & Shell
+   RD4X DASHBOARD V10 — App Router & Shell
    ============================================================ */
-
 'use strict';
 
 const App = {
-
   pages: {
     overview: window.renderOverview,
     search: window.renderSearch,
@@ -16,6 +13,7 @@ const App = {
     incidents: window.renderIncidents,
     audit: window.renderAudit,
     transcripts: window.renderTranscripts,
+    stats: window.renderStats,
     settings: window.renderSettings
   },
 
@@ -43,11 +41,15 @@ const App = {
 
     const close = () => {
       if (sidebar) {
-        sidebar.classList.remove('open');
+        sidebar.classList.remove(
+          'open'
+        );
       }
 
       if (backdrop) {
-        backdrop.classList.remove('open');
+        backdrop.classList.remove(
+          'open'
+        );
       }
     };
 
@@ -79,8 +81,8 @@ const App = {
 
     document
       .querySelectorAll('.nav-item')
-      .forEach(item => {
-        item.addEventListener(
+      .forEach(a => {
+        a.addEventListener(
           'click',
           () => {
             if (
@@ -102,26 +104,21 @@ const App = {
     if (searchInput) {
       searchInput.addEventListener(
         'keydown',
-        event => {
-          if (
-            event.key !== 'Enter'
-          ) {
+        e => {
+          if (e.key !== 'Enter') {
             return;
           }
 
-          const query =
+          const q =
             searchInput.value.trim();
 
-          if (query) {
+          if (q) {
             window.location.hash =
-              `#/search?q=${
-                encodeURIComponent(
-                  query
-                )
-              }`;
+              `#/search?q=${encodeURIComponent(
+                q
+              )}`;
 
             searchInput.value = '';
-
           } else {
             window.location.hash =
               '#/search';
@@ -130,13 +127,13 @@ const App = {
       );
     }
 
-    const userButton =
+    const userBtn =
       document.getElementById(
         'user-btn'
       );
 
-    if (userButton) {
-      userButton.addEventListener(
+    if (userBtn) {
+      userBtn.addEventListener(
         'click',
         () => {
           Notifications.info(
@@ -150,22 +147,22 @@ const App = {
   setupKeyboard() {
     document.addEventListener(
       'keydown',
-      event => {
+      e => {
         const active =
           document.activeElement;
 
         const tag =
-          active?.tagName;
+          active?.tagName || '';
 
         if (
-          event.key === '/' &&
+          e.key === '/' &&
           ![
             'INPUT',
             'TEXTAREA',
             'SELECT'
           ].includes(tag)
         ) {
-          event.preventDefault();
+          e.preventDefault();
 
           const input =
             document.getElementById(
@@ -190,12 +187,16 @@ const App = {
   parseHash() {
     const raw =
       window.location.hash
-        .replace(/^#\/?/, '');
+        .replace(
+          /^#\/?/,
+          ''
+        );
 
     const [
       pathPart,
       queryPart
-    ] = raw.split('?');
+    ] =
+      raw.split('?');
 
     const page =
       (
@@ -223,25 +224,12 @@ const App = {
     };
   },
 
-  updateActiveNavigation(
-    currentPage
-  ) {
-    document
-      .querySelectorAll('.nav-item')
-      .forEach(item => {
-        item.classList.toggle(
-          'active',
-          item.dataset.route ===
-            currentPage
-        );
-      });
-  },
-
   async route() {
     const {
       page,
       params
-    } = this.parseHash();
+    } =
+      this.parseHash();
 
     const content =
       document.getElementById(
@@ -252,7 +240,7 @@ const App = {
       return;
     }
 
-    const knownPages = [
+    const known = [
       'overview',
       'search',
       'users',
@@ -261,56 +249,90 @@ const App = {
       'incidents',
       'audit',
       'transcripts',
+      'stats',
       'settings'
     ];
 
     const currentPage =
-      knownPages.includes(page)
+      known.includes(page)
         ? page
         : 'overview';
 
-    this.updateActiveNavigation(
-      currentPage
-    );
+    /*
+     * Atualiza o item ativo da sidebar.
+     *
+     * O HTML pode usar:
+     * data-route="stats"
+     *
+     * ou simplesmente não ter o item ainda.
+     */
+    document
+      .querySelectorAll('.nav-item')
+      .forEach(a => {
+        a.classList.toggle(
+          'active',
+          a.dataset.route ===
+            currentPage
+        );
+      });
 
+    /*
+     * Garante que o conteúdo volte para o topo
+     * quando o usuário troca de página.
+     */
     content.scrollTop = 0;
 
     try {
-      const pageRenderer =
-        this.pages[currentPage];
+      const fn =
+        this.pages[
+          currentPage
+        ];
 
       if (
-        typeof pageRenderer ===
+        typeof fn ===
         'function'
       ) {
-        await pageRenderer(
+        await fn(
           content,
           params
         );
-
       } else {
         content.innerHTML = `
           <div class="empty-state">
-            Página não encontrada.
+            <div
+              style="
+                font-size:15px;
+                font-weight:600;
+                margin-bottom:5px;
+              "
+            >
+              Página não encontrada.
+            </div>
+
+            <div>
+              A página
+              <strong>
+                ${Utils.escapeHtml(
+                  currentPage
+                )}
+              </strong>
+              ainda não está disponível.
+            </div>
           </div>
         `;
       }
 
-    } catch (error) {
+    } catch (err) {
       console.error(
-        '[APP ROUTER]',
-        error
+        '[RD4X ROUTER]',
+        err
       );
-
-      const message =
-        error?.message ||
-        'Erro desconhecido';
 
       content.innerHTML = `
         <div class="empty-state">
 
           <svg class="icon">
-            <use href="#i-alert"></use>
+            <use href="#i-alert"/>
           </svg>
 
           <div
@@ -325,27 +347,18 @@ const App = {
           </div>
 
           <div>
-            ${
-              window.Utils?.escapeHtml
-                ? Utils.escapeHtml(
-                    message
-                  )
-                : message
-            }
+            ${Utils.escapeHtml(
+              err.message ||
+              'Erro desconhecido'
+            )}
           </div>
 
         </div>
       `;
 
-      if (
-        window.Notifications &&
-        typeof Notifications.error ===
-          'function'
-      ) {
-        Notifications.error(
-          'Erro ao carregar a página.'
-        );
-      }
+      Notifications.error(
+        'Erro ao conectar. Tentando novamente.'
+      );
     }
 
     document.title =
@@ -363,14 +376,8 @@ document.addEventListener(
   () => {
     App.init();
 
-    if (
-      window.Notifications &&
-      typeof Notifications.info ===
-        'function'
-    ) {
-      Notifications.info(
-        'Dashboard conectado à API RD4X.'
-      );
-    }
+    Notifications.info(
+      'Dashboard conectado à API RD4X.'
+    );
   }
 );
