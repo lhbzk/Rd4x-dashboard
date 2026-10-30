@@ -116,7 +116,8 @@ window.renderOverview = async function(el) {
         <div class="card-title">Administradores ativos</div>
       </div>
       <div class="list">
-        ${data.admins.map(a => `
+  ${data.admins.length
+    ? data.admins.map(a => `
           <div class="list-item">
             <div class="list-item-icon ${a.status === 'online' ? 'success' : 'warn'}">
               <svg class="icon"><use href="#i-users"/></svg>
@@ -128,6 +129,9 @@ window.renderOverview = async function(el) {
             <span class="badge ${a.status === 'online' ? 'atl' : 'exp'}">${a.status === 'online' ? 'Online' : 'Ausente'}</span>
           </div>
         `).join('')}
+            `)
+    : '<div class="empty-state">Nenhum administrador encontrado</div>'
+  }
       </div>
     </div>
   `;
