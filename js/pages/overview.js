@@ -1,1024 +1,833 @@
 /* ============================================================
-   RD4X DASHBOARD V10 — Overview Page
+   RD4X DASHBOARD V10
+   Página: Overview
+   Dados reais + Tickets recentes reais
    ============================================================ */
+
 'use strict';
 
-window.renderOverview = async function(el) {
-  el.innerHTML = renderLoadingSkeleton();
+window.renderOverview = async function renderOverview(
+  content,
+  params = {}
+) {
 
-  const data = await Api.getOverview();
+  content.innerHTML = `
+    <style>
+      .overview-page {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
 
-  el.innerHTML = `
-    <div class="page-header">
-      <div>
-        <h1 class="page-title">Visão Geral</h1>
-        <p class="page-desc">
-          Resumo do sistema RD4X
-        </p>
-      </div>
+      .overview-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 15px;
+        flex-wrap: wrap;
+      }
 
-      <div class="flex gap-8 items-center">
+      .overview-title {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+      }
+
+      .overview-subtitle {
+        margin: 5px 0 0;
+        font-size: 13px;
+        color: var(--text-secondary);
+      }
+
+      .overview-refresh {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 13px;
+        border-radius: 9px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text-primary);
+        cursor: pointer;
+      }
+
+      .overview-refresh:hover {
+        border-color: var(--accent);
+      }
+
+      .overview-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .overview-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+      }
+
+      .overview-card-label {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+      }
+
+      .overview-card-value {
+        font-size: 25px;
+        font-weight: 700;
+        color: var(--text-primary);
+      }
+
+      .overview-section {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      .overview-section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 15px 16px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .overview-section-title {
+        margin: 0;
+        font-size: 14px;
+        color: var(--text-primary);
+        font-weight: 650;
+      }
+
+      .overview-section-link {
+        border: 0;
+        background: transparent;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: 12px;
+      }
+
+      .overview-list {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .overview-ticket {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        padding: 13px 16px;
+        border-bottom: 1px solid var(--border);
+        cursor: pointer;
+      }
+
+      .overview-ticket:last-child {
+        border-bottom: 0;
+      }
+
+      .overview-ticket:hover {
+        background: rgba(255,255,255,.025);
+      }
+
+      .overview-ticket-main {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .overview-ticket-name {
+        color: var(--text-primary);
+        font-size: 13px;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .overview-ticket-user {
+        color: var(--text-secondary);
+        font-size: 11px;
+      }
+
+      .overview-ticket-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      .overview-ticket-status {
+        padding: 5px 8px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 600;
+      }
+
+      .overview-ticket-status.open {
+        color: #32d583;
+        background: rgba(50,213,131,.10);
+      }
+
+      .overview-ticket-status.attending {
+        color: #5da9ff;
+        background: rgba(93,169,255,.10);
+      }
+
+      .overview-ticket-status.closed {
+        color: #ff5c70;
+        background: rgba(255,92,112,.10);
+      }
+
+      .overview-admins {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        padding: 14px;
+      }
+
+      .overview-admin {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 11px;
+      }
+
+      .overview-admin-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        object-fit: cover;
+        background: rgba(255,255,255,.06);
+      }
+
+      .overview-admin-info {
+        min-width: 0;
+      }
+
+      .overview-admin-name {
+        color: var(--text-primary);
+        font-size: 12px;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .overview-admin-status {
+        color: #32d583;
+        font-size: 10px;
+        margin-top: 2px;
+      }
+
+      .overview-empty {
+        padding: 28px 16px;
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: 12px;
+      }
+
+      @media (max-width: 900px) {
+        .overview-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .overview-admins {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 520px) {
+        .overview-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+
+    <div class="overview-page">
+
+      <div class="overview-header">
+        <div>
+          <h1 class="overview-title">
+            Overview
+          </h1>
+
+          <p class="overview-subtitle">
+            Visão geral do RD4X Hub em tempo real.
+          </p>
+        </div>
+
         <button
-          class="btn btn-ghost btn-sm"
-          id="refresh-overview"
+          id="overview-refresh"
+          class="overview-refresh"
+          type="button"
         >
-          <svg
-            class="icon"
-            style="width:14px;height:14px"
-          >
-            <use href="#i-refresh"/>
+          <svg class="icon">
+            <use href="#i-refresh"></use>
           </svg>
           Atualizar
         </button>
       </div>
-    </div>
 
-    ${
-      data.releaseVolumeAlert &&
-      data.releaseVolumeAlert.triggered
-        ? renderAlertBanner(
-            data.releaseVolumeAlert
-          )
-        : ''
-    }
+      <div class="overview-grid">
 
-    <div class="stats-grid">
-      ${statCard(
-        'Usuários',
-        data.users.total,
-        'Cadastrados',
-        'i-users',
-        ''
-      )}
-
-      ${statCard(
-        'Usuários ativos',
-        data.users.active,
-        'Com licença ativa',
-        'i-check',
-        'success'
-      )}
-
-      ${statCard(
-        'Tickets abertos',
-        data.tickets.open +
-          data.tickets.inProgress,
-        'Abertos + em atendimento',
-        'i-ticket',
-        'warn'
-      )}
-
-      ${statCard(
-        'Tickets fechados',
-        data.tickets.closed +
-          data.tickets.resolved,
-        'Resolvidos + fechados',
-        'i-ticket',
-        'success'
-      )}
-
-      ${statCard(
-        'Releases totais',
-        data.releases.total,
-        'Histórico completo',
-        'i-release',
-        ''
-      )}
-
-      ${statCard(
-        'Releases (24h)',
-        data.releases.last24h,
-        'Últimas 24 horas',
-        'i-release',
-        'info'
-      )}
-
-      ${statCard(
-        'Incidentes',
-        data.incidents.total,
-        data.incidents.open +
-          ' em aberto',
-        'i-incident',
-        'danger'
-      )}
-
-      ${statCard(
-        'Blacklist',
-        data.users.blacklisted,
-        'Usuários bloqueados',
-        'i-alert',
-        'danger'
-      )}
-
-      ${statCard(
-        'HWIDs ativos',
-        data.hwid.active,
-        'Dispositivos registrados',
-        'i-check',
-        'info'
-      )}
-    </div>
-
-    <div class="grid-main mb-20">
-      <div class="card">
-        <div class="card-header">
-          <div>
-            <div class="card-title">
-              Atividade do sistema
-            </div>
-
-            <div class="card-subtitle">
-              Últimos 7 dias
-            </div>
-          </div>
-        </div>
-
-        ${
-          renderBarChart(
-            (data.systemActivity || []).map(
-              d => ({
-                label: d.label,
-                value: d.activity,
-                tooltip:
-                  `${d.activity} eventos`
-              })
-            )
-          )
-        }
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <div>
-            <div class="card-title">
-              Status da API
-            </div>
-
-            <div class="card-subtitle">
-              Integração RD4X
-            </div>
-          </div>
-        </div>
-
-        <div class="list">
-          ${statusRow(
-            'Modo',
-            Api.isMock()
-              ? 'MOCK / DEMO'
-              : 'API REAL',
-            Api.isMock()
-              ? 'warn'
-              : 'success'
-          )}
-
-          ${statusRow(
-            'Ambiente',
-            CONFIG.ENVIRONMENT,
-            'info'
-          )}
-
-          ${statusRow(
-            'Endpoint',
-            CONFIG.API_BASE_URL,
-            ''
-          )}
-
-          ${statusRow(
-            'Versão Dashboard',
-            CONFIG.DASHBOARD_VERSION,
-            ''
-          )}
-
-          ${statusRow(
-            'Versão API',
-            CONFIG.API_VERSION,
-            ''
-          )}
-
-          ${statusRow(
-            'Última sincronização',
-            Utils.formatDate(
-              new Date().toISOString()
-            ),
-            ''
-          )}
-        </div>
-      </div>
-    </div>
-
-    <div class="grid-2 mb-20">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">
-            Tickets por período
-          </div>
-        </div>
-
-        ${
-          renderBarChart(
-            (data.systemActivity || []).map(
-              d => ({
-                label: d.label,
-                value: d.tickets,
-                color: 'warn',
-                tooltip:
-                  `${d.tickets} tickets`
-              })
-            )
-          )
-        }
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">
-            Releases por período
-          </div>
-        </div>
-
-        ${
-          renderBarChart(
-            (data.systemActivity || []).map(
-              d => ({
-                label: d.label,
-                value: d.releases,
-                color: 'purple',
-                tooltip:
-                  `${d.releases} releases`
-              })
-            )
-          )
-        }
-      </div>
-    </div>
-
-    <div class="grid-2 mb-20">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">
-            Atividade recente
+        <div class="overview-card">
+          <div class="overview-card-label">
+            Usuários ativos
           </div>
 
-          <a
-            href="#/audit"
-            class="btn btn-ghost btn-sm"
+          <div
+            id="overview-ativos"
+            class="overview-card-value"
           >
-            Ver tudo
-          </a>
+            —
+          </div>
         </div>
 
-        <div
-          class="list"
-          id="recent-activity"
-        ></div>
+        <div class="overview-card">
+          <div class="overview-card-label">
+            Tickets abertos
+          </div>
+
+          <div
+            id="overview-tickets"
+            class="overview-card-value"
+          >
+            —
+          </div>
+        </div>
+
+        <div class="overview-card">
+          <div class="overview-card-label">
+            Execuções
+          </div>
+
+          <div
+            id="overview-execucoes"
+            class="overview-card-value"
+          >
+            —
+          </div>
+        </div>
+
+        <div class="overview-card">
+          <div class="overview-card-label">
+            Faturamento
+          </div>
+
+          <div
+            id="overview-faturamento"
+            class="overview-card-value"
+          >
+            —
+          </div>
+        </div>
+
       </div>
 
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">
+      <section class="overview-section">
+
+        <div class="overview-section-header">
+
+          <h2 class="overview-section-title">
             Tickets recentes
-          </div>
+          </h2>
 
-          <a
-            href="#/tickets"
-            class="btn btn-ghost btn-sm"
+          <button
+            id="overview-open-tickets"
+            class="overview-section-link"
+            type="button"
           >
-            Ver tudo
-          </a>
+            Ver todos
+          </button>
+
         </div>
 
         <div
-          class="list"
-          id="recent-tickets"
-        ></div>
-      </div>
-    </div>
-
-    <div class="grid-2 mb-20">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">
-            Releases recentes
+          id="overview-tickets-list"
+          class="overview-list"
+        >
+          <div class="overview-empty">
+            Carregando tickets...
           </div>
+        </div>
 
-          <a
-            href="#/releases"
-            class="btn btn-ghost btn-sm"
-          >
-            Ver tudo
-          </a>
+      </section>
+
+      <section class="overview-section">
+
+        <div class="overview-section-header">
+
+          <h2 class="overview-section-title">
+            Administradores ativos
+          </h2>
+
         </div>
 
         <div
-          class="list"
-          id="recent-releases"
-        ></div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">
-            Incidentes recentes
+          id="overview-admins"
+          class="overview-admins"
+        >
+          <div class="overview-empty">
+            Carregando administradores...
           </div>
-
-          <a
-            href="#/incidents"
-            class="btn btn-ghost btn-sm"
-          >
-            Ver tudo
-          </a>
         </div>
 
-        <div
-          class="list"
-          id="recent-incidents"
-        ></div>
-      </div>
-    </div>
+      </section>
 
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">
-          Administradores ativos
-        </div>
-      </div>
-
-      <div class="list">
-        ${
-          Array.isArray(data.admins) &&
-          data.admins.length
-            ? data.admins.map(a => `
-                <div class="list-item">
-                  <div
-                    class="list-item-icon ${
-                      a.status === 'online'
-                        ? 'success'
-                        : 'warn'
-                    }"
-                  >
-                    ${
-                      a.avatar
-                        ? `
-                          <img
-                            src="${Utils.escapeHtml(
-                              a.avatar
-                            )}"
-                            alt=""
-                            style="
-                              width:32px;
-                              height:32px;
-                              border-radius:50%;
-                            "
-                          >
-                        `
-                        : `
-                          <svg class="icon">
-                            <use href="#i-users"/>
-                          </svg>
-                        `
-                    }
-                  </div>
-
-                  <div
-                    style="
-                      flex:1;
-                      min-width:0
-                    "
-                  >
-                    <div class="list-item-title">
-                      ${Utils.escapeHtml(
-                        a.name
-                      )}
-                    </div>
-
-                    <div class="list-item-sub">
-                      ${Utils.escapeHtml(
-                        a.role ||
-                        'Administrador'
-                      )}
-                    </div>
-                  </div>
-
-                  <span
-                    class="badge ${
-                      a.status === 'online'
-                        ? 'atl'
-                        : 'exp'
-                    }"
-                  >
-                    ${
-                      a.status === 'online'
-                        ? 'Online'
-                        : 'Offline'
-                    }
-                  </span>
-                </div>
-              `).join('')
-            : `
-              <div class="empty-state">
-                Nenhum administrador encontrado
-              </div>
-            `
-        }
-      </div>
     </div>
   `;
-
-  const activityEl =
-    el.querySelector(
-      '#recent-activity'
-    );
-
-  activityEl.innerHTML =
-    (data.recentActivity || [])
-      .map(a => `
-        <div class="list-item">
-          <div
-            class="list-item-icon ${
-              a.result === 'Falha'
-                ? 'danger'
-                : a.action.includes('Alerta') ||
-                  a.action.includes('Tentativa')
-                  ? 'warn'
-                  : 'success'
-            }"
-          >
-            <svg class="icon">
-              <use href="#i-audit"/>
-            </svg>
-          </div>
-
-          <div
-            style="
-              flex:1;
-              min-width:0
-            "
-          >
-            <div class="list-item-title">
-              ${Utils.escapeHtml(
-                a.action
-              )}
-            </div>
-
-            <div class="list-item-sub">
-              ${Utils.escapeHtml(
-                a.admin
-              )} ·
-              ${Utils.escapeHtml(
-                a.target
-              )}
-            </div>
-          </div>
-
-          <div class="list-item-time">
-            ${Utils.relativeTime(
-              a.createdAt
-            )}
-          </div>
-        </div>
-      `)
-      .join('') ||
-    '<div class="empty-state">Nenhuma atividade</div>';
-
-  const ticketsEl =
-    el.querySelector(
-      '#recent-tickets'
-    );
-
-  ticketsEl.innerHTML =
-    (data.recentTickets || [])
-      .map(t => {
-        const user =
-          MockData.users.find(
-            u => u.id === t.userId
-          );
-
-        return `
-          <div
-            class="list-item"
-            data-ticket-id="${Utils.escapeHtml(
-              t.id
-            )}"
-          >
-            <div
-              class="list-item-icon ${
-                t.priority === 'Urgente'
-                  ? 'danger'
-                  : t.priority === 'Alta'
-                    ? 'warn'
-                    : ''
-              }"
-            >
-              <svg class="icon">
-                <use href="#i-ticket"/>
-              </svg>
-            </div>
-
-            <div
-              style="
-                flex:1;
-                min-width:0
-              "
-            >
-              <div class="list-item-title">
-                ${Utils.escapeHtml(
-                  t.id
-                )} ·
-                ${Utils.escapeHtml(
-                  t.category
-                )}
-              </div>
-
-              <div class="list-item-sub">
-                ${Utils.escapeHtml(
-                  user
-                    ? user.discord
-                    : '—'
-                )} ·
-                ${Utils.escapeHtml(
-                  t.priority
-                )}
-              </div>
-            </div>
-
-            ${Utils.statusBadge(
-              t.status
-            )}
-          </div>
-        `;
-      })
-      .join('');
-
-  const releasesEl =
-    el.querySelector(
-      '#recent-releases'
-    );
-
-  releasesEl.innerHTML =
-    (data.recentReleases || [])
-      .map(r => {
-        const user =
-          MockData.users.find(
-            u => u.id === r.userId
-          );
-
-        return `
-          <div
-            class="list-item"
-            data-release-id="${Utils.escapeHtml(
-              r.id
-            )}"
-          >
-            <div class="list-item-icon">
-              <svg class="icon">
-                <use href="#i-release"/>
-              </svg>
-            </div>
-
-            <div
-              style="
-                flex:1;
-                min-width:0
-              "
-            >
-              <div class="list-item-title">
-                ${Utils.escapeHtml(
-                  r.id
-                )} ·
-                ${Utils.escapeHtml(
-                  user
-                    ? user.discord
-                    : '—'
-                )}
-              </div>
-
-              <div class="list-item-sub">
-                ${Utils.escapeHtml(
-                  r.admin
-                )} ·
-                ${Utils.relativeTime(
-                  r.createdAt
-                )}
-              </div>
-            </div>
-
-            ${Utils.statusBadge(
-              r.status
-            )}
-          </div>
-        `;
-      })
-      .join('');
-
-  const incidentsEl =
-    el.querySelector(
-      '#recent-incidents'
-    );
-
-  incidentsEl.innerHTML =
-    (data.recentIncidents || [])
-      .map(i => `
-        <div
-          class="list-item"
-          data-incident-id="${Utils.escapeHtml(
-            i.id
-          )}"
-        >
-          <div
-            class="list-item-icon ${
-              i.severity === 'Crítica' ||
-              i.severity === 'Alta'
-                ? 'danger'
-                : 'warn'
-            }"
-          >
-            <svg class="icon">
-              <use href="#i-incident"/>
-            </svg>
-          </div>
-
-          <div
-            style="
-              flex:1;
-              min-width:0
-            "
-          >
-            <div class="list-item-title">
-              ${Utils.escapeHtml(
-                i.type
-              )}
-            </div>
-
-            <div class="list-item-sub">
-              ${Utils.escapeHtml(
-                i.id
-              )} ·
-              ${Utils.relativeTime(
-                i.createdAt
-              )}
-            </div>
-          </div>
-
-          ${Utils.severityBadge(
-            i.severity
-          )}
-        </div>
-      `)
-      .join('');
 
   const refreshButton =
-    el.querySelector(
-      '#refresh-overview'
+    document.getElementById(
+      'overview-refresh'
     );
 
-  if (refreshButton) {
-    refreshButton.addEventListener(
-      'click',
-      () => {
-        Notifications.info(
-          'Recarregando dados...'
+  function escape(value) {
+    if (
+      window.Utils &&
+      typeof Utils.escapeHtml ===
+        'function'
+    ) {
+      return Utils.escapeHtml(
+        String(value ?? '')
+      );
+    }
+
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function formatMoney(value) {
+    return new Intl.NumberFormat(
+      'pt-BR',
+      {
+        style: 'currency',
+        currency: 'BRL'
+      }
+    ).format(
+      Number(value) || 0
+    );
+  }
+
+  function formatDate(value) {
+    if (!value) {
+      return '—';
+    }
+
+    const timestamp =
+      typeof value === 'number'
+        ? value
+        : new Date(value).getTime();
+
+    if (
+      !Number.isFinite(timestamp)
+    ) {
+      return '—';
+    }
+
+    return new Intl.DateTimeFormat(
+      'pt-BR',
+      {
+        dateStyle: 'short',
+        timeStyle: 'short'
+      }
+    ).format(timestamp);
+  }
+
+  function ticketStatus(
+    status
+  ) {
+    const value =
+      String(status || '')
+        .toLowerCase();
+
+    if (
+      value === 'em_atendimento' ||
+      value === 'atendimento' ||
+      value === 'attending'
+    ) {
+      return {
+        key: 'attending',
+        label: 'Em atendimento'
+      };
+    }
+
+    if (
+      value === 'closed' ||
+      value === 'fechado' ||
+      value === 'encerrado'
+    ) {
+      return {
+        key: 'closed',
+        label: 'Encerrado'
+      };
+    }
+
+    return {
+      key: 'open',
+      label: 'Aberto'
+    };
+  }
+
+  function normalizeTicket(
+    item
+  ) {
+    return {
+      channelId:
+        item.channelId ||
+        item.id ||
+        '',
+
+      channelName:
+        item.channelName ||
+        item.name ||
+        (
+          item.channelId
+            ? `ticket-${item.channelId}`
+            : 'Ticket'
+        ),
+
+      username:
+        item.username ||
+        item.user ||
+        'Desconhecido',
+
+      userId:
+        item.userId ||
+        '',
+
+      status:
+        item.status ||
+        'open',
+
+      prioridade:
+        item.prioridade ||
+        'normal',
+
+      ultimoContato:
+        item.ultimoContato ||
+        null
+    };
+  }
+
+  async function loadOverview() {
+
+    refreshButton.disabled =
+      true;
+
+    try {
+
+      const [
+        overviewResponse,
+        ticketsResponse,
+        adminsResponse
+      ] = await Promise.all([
+        Api.getOverview(),
+        Api.getTickets(),
+        Api.getAdmins()
+      ]);
+
+      const overview =
+        overviewResponse?.data ||
+        overviewResponse ||
+        {};
+
+      const ticketsRaw =
+        Array.isArray(
+          ticketsResponse
+        )
+          ? ticketsResponse
+          : Array.isArray(
+              ticketsResponse?.data
+            )
+              ? ticketsResponse.data
+              : [];
+
+      const adminsRaw =
+        Array.isArray(
+          adminsResponse
+        )
+          ? adminsResponse
+          : Array.isArray(
+              adminsResponse?.data
+            )
+              ? adminsResponse.data
+              : [];
+
+      document.getElementById(
+        'overview-ativos'
+      ).textContent =
+        Number(
+          overview.ativos || 0
         );
 
-        renderOverview(el);
-      }
-    );
-  }
+      document.getElementById(
+        'overview-tickets'
+      ).textContent =
+        Number(
+          overview.ticketsAbertos || 0
+        );
 
-  el.querySelectorAll(
-    '[data-ticket-id]'
-  ).forEach(node => {
-    node.addEventListener(
-      'click',
-      () => {
-        const ticket =
-          MockData.tickets.find(
-            x =>
-              x.id ===
-              node.dataset.ticketId
-          );
+      document.getElementById(
+        'overview-execucoes'
+      ).textContent =
+        Number(
+          overview.execucoes || 0
+        );
 
-        if (
-          ticket &&
-          window.openTicketModal
-        ) {
-          window.openTicketModal(
-            ticket
-          );
-        }
-      }
-    );
-  });
+      document.getElementById(
+        'overview-faturamento'
+      ).textContent =
+        formatMoney(
+          overview.faturamento
+        );
 
-  el.querySelectorAll(
-    '[data-release-id]'
-  ).forEach(node => {
-    node.addEventListener(
-      'click',
-      () => {
-        const release =
-          MockData.releases.find(
-            x =>
-              x.id ===
-              node.dataset.releaseId
-          );
+      renderTickets(
+        ticketsRaw
+          .map(normalizeTicket)
+          .slice(0, 8)
+      );
 
-        if (
-          release &&
-          window.openReleaseModal
-        ) {
-          window.openReleaseModal(
-            release
-          );
-        }
-      }
-    );
-  });
+      renderAdmins(
+        adminsRaw
+      );
 
-  el.querySelectorAll(
-    '[data-incident-id]'
-  ).forEach(node => {
-    node.addEventListener(
-      'click',
-      () => {
-        const incident =
-          MockData.incidents.find(
-            x =>
-              x.id ===
-              node.dataset.incidentId
-          );
+    } catch (error) {
 
-        if (
-          incident &&
-          window.openIncidentModal
-        ) {
-          window.openIncidentModal(
-            incident
-          );
-        }
-      }
-    );
-  });
-};
+      console.error(
+        '[OVERVIEW]',
+        error
+      );
 
-function renderLoadingSkeleton() {
-  return `
-    <div class="page-header">
-      <div>
-        <div
-          class="skeleton skeleton-line"
-          style="
-            width:180px;
-            height:22px
-          "
-        ></div>
-
-        <div
-          class="skeleton skeleton-line"
-          style="
-            width:240px;
-            height:12px;
-            margin-top:8px
-          "
-        ></div>
-      </div>
-    </div>
-
-    <div class="stats-grid">
-      ${
-        Array(9).fill(
-          '<div class="skeleton skeleton-card"></div>'
-        ).join('')
-      }
-    </div>
-
-    <div class="grid-2 mb-20">
-      <div
-        class="skeleton"
-        style="
-          height:260px;
-          border-radius:12px
-        "
-      ></div>
-
-      <div
-        class="skeleton"
-        style="
-          height:260px;
-          border-radius:12px
-        "
-      ></div>
-    </div>
-  `;
-}
-
-function statCard(
-  label,
-  value,
-  hint,
-  iconId,
-  variant
-) {
-  return `
-    <div class="stat-card">
-      <div
-        class="stat-icon ${
-          variant || ''
-        }"
-      >
-        <svg class="icon">
-          <use href="#${iconId}"/>
-        </svg>
-      </div>
-
-      <div class="stat-label">
-        ${Utils.escapeHtml(label)}
-      </div>
-
-      <div class="stat-value">
-        ${Utils.escapeHtml(
-          String(value)
-        )}
-      </div>
-
-      <div class="stat-hint">
-        ${Utils.escapeHtml(hint)}
-      </div>
-    </div>
-  `;
-}
-
-function statusRow(
-  label,
-  value,
-  variant
-) {
-  return `
-    <div
-      class="list-item"
-      style="cursor:default"
-    >
-      <div style="flex:1">
-        <div
-          class="list-item-sub"
-          style="margin:0"
-        >
-          ${Utils.escapeHtml(label)}
+      document.getElementById(
+        'overview-tickets-list'
+      ).innerHTML = `
+        <div class="overview-empty">
+          Não foi possível carregar os tickets.
         </div>
-      </div>
+      `;
 
-      <div
-        style="
-          font-size:12.5px;
-          color:var(--text);
-          font-weight:500
-        "
-      >
-        ${Utils.escapeHtml(value)}
-      </div>
-    </div>
-  `;
-}
+      document.getElementById(
+        'overview-admins'
+      ).innerHTML = `
+        <div class="overview-empty">
+          Não foi possível carregar os administradores.
+        </div>
+      `;
 
-function renderBarChart(data) {
-  if (!data || !data.length) {
-    return `
-      <div class="empty-state">
-        Sem dados
-      </div>
-    `;
+      if (
+        window.Notifications
+      ) {
+        Notifications.error(
+          'Erro ao atualizar o Overview.'
+        );
+      }
+
+    } finally {
+
+      refreshButton.disabled =
+        false;
+    }
   }
 
-  const max =
-    Math.max(
-      ...data.map(
-        d => d.value
-      ),
-      1
-    );
+  function renderTickets(
+    tickets
+  ) {
+    const container =
+      document.getElementById(
+        'overview-tickets-list'
+      );
 
-  return `
-    <div class="chart">
-      ${
-        data.map(d => {
-          const pct =
-            Math.max(
-              4,
-              Math.round(
-                (d.value / max) *
-                100
-              )
+    if (!tickets.length) {
+      container.innerHTML = `
+        <div class="overview-empty">
+          Nenhum ticket encontrado.
+        </div>
+      `;
+
+      return;
+    }
+
+    container.innerHTML =
+      tickets
+        .map(ticket => {
+
+          const status =
+            ticketStatus(
+              ticket.status
             );
 
           return `
             <div
-              class="chart-bar ${
-                d.color || ''
-              }"
-              style="height:${pct}%"
+              class="overview-ticket"
+              data-ticket-id="${escape(
+                ticket.channelId
+              )}"
             >
-              <span class="chart-tooltip">
-                ${Utils.escapeHtml(
-                  d.tooltip ||
-                  d.value
-                )}
-              </span>
+
+              <div class="overview-ticket-main">
+
+                <div class="overview-ticket-name">
+                  ${escape(
+                    ticket.channelName
+                  )}
+                </div>
+
+                <div class="overview-ticket-user">
+                  ${escape(
+                    ticket.username
+                  )}
+                </div>
+
+              </div>
+
+              <div class="overview-ticket-right">
+
+                <span
+                  class="overview-ticket-status ${status.key}"
+                >
+                  ${status.label}
+                </span>
+
+              </div>
+
             </div>
           `;
-        }).join('')
-      }
-    </div>
+        })
+        .join('');
 
-    <div class="chart-labels">
-      ${
-        data.map(
-          d =>
-            `<span>${Utils.escapeHtml(
-              d.label
-            )}</span>`
-        ).join('')
-      }
-    </div>
-  `;
-}
+    container
+      .querySelectorAll(
+        '[data-ticket-id]'
+      )
+      .forEach(element => {
 
-function renderAlertBanner(alert) {
-  return `
-    <div class="alert-banner">
-      <svg class="icon">
-        <use href="#i-incident"/>
-      </svg>
+        element.addEventListener(
+          'click',
+          () => {
+            window.location.hash =
+              `#/tickets?q=${
+                encodeURIComponent(
+                  element.dataset.ticketId
+                )
+              }`;
+          }
+        );
 
-      <div style="flex:1">
-        <div class="alert-banner-title">
-          ALERTA: Volume anormal de releases detectado.
+      });
+  }
+
+  function renderAdmins(
+    admins
+  ) {
+    const container =
+      document.getElementById(
+        'overview-admins'
+      );
+
+    if (!admins.length) {
+      container.innerHTML = `
+        <div class="overview-empty">
+          Nenhum administrador encontrado.
         </div>
+      `;
 
-        <div class="alert-banner-desc">
-          O sistema detectou
-          <strong>
-            ${alert.count} releases
-          </strong>
-          em um período de
-          <strong>
-            ${alert.periodMinutes} minutos
-          </strong>.
-          Severidade:
-          <strong>
-            ${Utils.escapeHtml(
-              alert.severity
-            )}
-          </strong>.
-        </div>
+      return;
+    }
 
-        <div class="alert-banner-meta">
-          <span>
-            Detectado em:
-            <strong>
-              ${Utils.formatDate(
-                alert.detectedAt
-              )}
-            </strong>
-          </span>
+    container.innerHTML =
+      admins
+        .map(admin => {
 
-          <span>
-            Admins envolvidos:
-            <strong>
+          const avatar =
+            admin.avatar ||
+            admin.user?.avatar ||
+            '';
+
+          const name =
+            admin.name ||
+            admin.username ||
+            admin.tag ||
+            'Administrador';
+
+          const status =
+            admin.status === 'online'
+              ? 'Online'
+              : 'Offline';
+
+          return `
+            <div class="overview-admin">
+
               ${
-                Array.isArray(alert.admins)
-                  ? alert.admins
-                      .map(
-                        Utils.escapeHtml
-                      )
-                      .join(', ')
-                  : '—'
+                avatar
+                  ? `
+                    <img
+                      class="overview-admin-avatar"
+                      src="${escape(avatar)}"
+                      alt=""
+                    />
+                  `
+                  : `
+                    <div
+                      class="overview-admin-avatar"
+                    ></div>
+                  `
               }
-            </strong>
-          </span>
 
-          <span>
-            Usuários afetados:
-            <strong>
-              ${alert.usersAffected}
-            </strong>
-          </span>
-        </div>
+              <div class="overview-admin-info">
 
-        <div class="alert-banner-actions">
-          <a
-            class="btn btn-danger btn-sm"
-            href="#/incidents"
-          >
-            Ver incidente
-          </a>
+                <div class="overview-admin-name">
+                  ${escape(name)}
+                </div>
 
-          <a
-            class="btn btn-ghost btn-sm"
-            href="#/releases"
-          >
-            Ver releases
-          </a>
-        </div>
-      </div>
-    </div>
-  `;
-}
+                <div
+                  class="overview-admin-status"
+                  style="${
+                    status === 'Offline'
+                      ? 'color:var(--text-secondary)'
+                      : ''
+                  }"
+                >
+                  ${status}
+                </div>
+
+              </div>
+
+            </div>
+          `;
+        })
+        .join('');
+  }
+
+  document
+    .getElementById(
+      'overview-open-tickets'
+    )
+    ?.addEventListener(
+      'click',
+      () => {
+        window.location.hash =
+          '#/tickets';
+      }
+    );
+
+  refreshButton.addEventListener(
+    'click',
+    loadOverview
+  );
+
+  await loadOverview();
+};
