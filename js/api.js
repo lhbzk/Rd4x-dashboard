@@ -108,6 +108,7 @@ const Api = {
 
     const data = overviewResponse?.data || {};
     const admins = adminsResponse?.data || [];
+     console.log('[RD4X ADMINS REAIS]', admins);
     return {
     users: {
       total: data.ativos || 0,
