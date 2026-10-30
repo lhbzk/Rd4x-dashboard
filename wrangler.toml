@@ -1,0 +1,6 @@
+name = "rd4x-dashboard"
+main = "worker/index.js"
+compatibility_date = "2026-10-23"
+
+[assets]
+directory = "."
