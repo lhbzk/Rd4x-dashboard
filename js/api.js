@@ -95,7 +95,7 @@ const Api = {
     recentTickets: [],
     recentReleases: [],
     recentIncidents: [],
-
+    systemActivity: [],
     vendas: data.vendas || 0,
     faturamento: data.faturamento || 0
   };
