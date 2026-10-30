@@ -46,22 +46,34 @@ const Api = {
   },
 
   /* ============ ENDPOINTS OFICIAIS (RD4X V10) ============ */
-
   async getOverview() {
-  if (CONFIG.MOCK_MODE) {
-    await this._delay();
-    return this._computeMockOverview();
-  }
+    if (CONFIG.MOCK_MODE) {
+      await this._delay();
+      return this._computeMockOverview();
+    }
 
-  const [overviewResponse, adminsResponse] = await Promise.all([
-    this._request('GET', '/api/rd4x/overview'),
-    this._request('GET', '/api/rd4x/admins')
-  ]);
+    const overviewResponse = await this._request(
+      'GET',
+      '/api/rd4x/overview'
+    );
 
-  const data = overviewResponse?.data || {};
-  const admins = adminsResponse?.data || [];
+    let adminsResponse = {
+      success: true,
+      data: []
+    };
 
-  return {
+    try {
+      adminsResponse = await this._request(
+        'GET',
+        '/api/rd4x/admins'
+      );
+    } catch (error) {
+      console.warn('[RD4X] Não foi possível carregar administradores:', error);
+    }
+
+    const data = overviewResponse?.data || {};
+    const admins = adminsResponse?.data || [];
+    return {
     users: {
       total: data.ativos || 0,
       active: data.ativos || 0,
