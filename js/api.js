@@ -32,18 +32,53 @@ const Api = {
   _delay(ms = 250) { return new Promise(r => setTimeout(r, ms)); },
 
   async _request(method, path, body) {
-    if (CONFIG.MOCK_MODE) throw new Error('Requisição real bloqueada em MOCK_MODE');
-    const url = CONFIG.API_BASE_URL.replace(/\/$/, '') + path;
-    const opts = {
-      method,
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      credentials: 'include'
-    };
-    if (body) opts.body = JSON.stringify(body);
+  if (CONFIG.MOCK_MODE) {
+    throw new Error('Requisição real bloqueada em MOCK_MODE');
+  }
+
+  const url =
+    CONFIG.API_BASE_URL.replace(/\/$/, '') + path;
+
+  const controller = new AbortController();
+
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, 8000);
+
+  const opts = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    credentials: 'include',
+    signal: controller.signal
+  };
+
+  if (body) {
+    opts.body = JSON.stringify(body);
+  }
+
+  try {
     const res = await fetch(url, opts);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  },
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    return await res.json();
+
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error(`Tempo limite excedido ao acessar ${path}`);
+    }
+
+    throw error;
+
+  } finally {
+    clearTimeout(timeout);
+  }
+},
 
   /* ============ ENDPOINTS OFICIAIS (RD4X V10) ============ */
   async getOverview() {
