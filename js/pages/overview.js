@@ -1,274 +1,29 @@
 /* ============================================================
-   RD4X DASHBOARD V10
-   Página: Overview
-   Dados reais + Tickets recentes reais
+   RD4X DASHBOARD V10 — OVERVIEW REAL
    ============================================================ */
-
 'use strict';
 
-window.renderOverview = async function renderOverview(
+window.renderOverview = async function (
   content,
   params = {}
 ) {
-
   content.innerHTML = `
-    <style>
-      .overview-page {
-        display: flex;
-        flex-direction: column;
-        gap: 18px;
-      }
+    <div class="page overview-page">
 
-      .overview-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 15px;
-        flex-wrap: wrap;
-      }
-
-      .overview-title {
-        margin: 0;
-        font-size: 24px;
-        font-weight: 700;
-        color: var(--text-primary);
-      }
-
-      .overview-subtitle {
-        margin: 5px 0 0;
-        font-size: 13px;
-        color: var(--text-secondary);
-      }
-
-      .overview-refresh {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 9px 13px;
-        border-radius: 9px;
-        border: 1px solid var(--border);
-        background: var(--surface);
-        color: var(--text-primary);
-        cursor: pointer;
-      }
-
-      .overview-refresh:hover {
-        border-color: var(--accent);
-      }
-
-      .overview-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 12px;
-      }
-
-      .overview-card {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 16px;
-      }
-
-      .overview-card-label {
-        font-size: 12px;
-        color: var(--text-secondary);
-        margin-bottom: 8px;
-      }
-
-      .overview-card-value {
-        font-size: 25px;
-        font-weight: 700;
-        color: var(--text-primary);
-      }
-
-      .overview-section {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        overflow: hidden;
-      }
-
-      .overview-section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        padding: 15px 16px;
-        border-bottom: 1px solid var(--border);
-      }
-
-      .overview-section-title {
-        margin: 0;
-        font-size: 14px;
-        color: var(--text-primary);
-        font-weight: 650;
-      }
-
-      .overview-section-link {
-        border: 0;
-        background: transparent;
-        color: var(--accent);
-        cursor: pointer;
-        font-size: 12px;
-      }
-
-      .overview-list {
-        display: flex;
-        flex-direction: column;
-      }
-
-      .overview-ticket {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 15px;
-        padding: 13px 16px;
-        border-bottom: 1px solid var(--border);
-        cursor: pointer;
-      }
-
-      .overview-ticket:last-child {
-        border-bottom: 0;
-      }
-
-      .overview-ticket:hover {
-        background: rgba(255,255,255,.025);
-      }
-
-      .overview-ticket-main {
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-      }
-
-      .overview-ticket-name {
-        color: var(--text-primary);
-        font-size: 13px;
-        font-weight: 600;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .overview-ticket-user {
-        color: var(--text-secondary);
-        font-size: 11px;
-      }
-
-      .overview-ticket-right {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        flex-shrink: 0;
-      }
-
-      .overview-ticket-status {
-        padding: 5px 8px;
-        border-radius: 999px;
-        font-size: 10px;
-        font-weight: 600;
-      }
-
-      .overview-ticket-status.open {
-        color: #32d583;
-        background: rgba(50,213,131,.10);
-      }
-
-      .overview-ticket-status.attending {
-        color: #5da9ff;
-        background: rgba(93,169,255,.10);
-      }
-
-      .overview-ticket-status.closed {
-        color: #ff5c70;
-        background: rgba(255,92,112,.10);
-      }
-
-      .overview-admins {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
-        padding: 14px;
-      }
-
-      .overview-admin {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 11px;
-      }
-
-      .overview-admin-avatar {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        object-fit: cover;
-        background: rgba(255,255,255,.06);
-      }
-
-      .overview-admin-info {
-        min-width: 0;
-      }
-
-      .overview-admin-name {
-        color: var(--text-primary);
-        font-size: 12px;
-        font-weight: 600;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .overview-admin-status {
-        color: #32d583;
-        font-size: 10px;
-        margin-top: 2px;
-      }
-
-      .overview-empty {
-        padding: 28px 16px;
-        text-align: center;
-        color: var(--text-secondary);
-        font-size: 12px;
-      }
-
-      @media (max-width: 900px) {
-        .overview-grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .overview-admins {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      @media (max-width: 520px) {
-        .overview-grid {
-          grid-template-columns: 1fr;
-        }
-      }
-    </style>
-
-    <div class="overview-page">
-
-      <div class="overview-header">
+      <div class="page-header">
         <div>
-          <h1 class="overview-title">
-            Overview
-          </h1>
+          <div class="page-title">
+            Visão geral
+          </div>
 
-          <p class="overview-subtitle">
-            Visão geral do RD4X Hub em tempo real.
-          </p>
+          <div class="page-subtitle">
+            Monitoramento do sistema RD4X em tempo real.
+          </div>
         </div>
 
         <button
+          class="btn btn-secondary"
           id="overview-refresh"
-          class="overview-refresh"
-          type="button"
         >
           <svg class="icon">
             <use href="#i-refresh"></use>
@@ -277,462 +32,884 @@ window.renderOverview = async function renderOverview(
         </button>
       </div>
 
+      <div
+        class="overview-cards"
+        id="overview-cards"
+      >
+        ${[1,2,3,4,5,6].map(() => `
+          <div class="overview-card skeleton-card">
+            <div class="skeleton skeleton-small"></div>
+            <div class="skeleton skeleton-large"></div>
+          </div>
+        `).join('')}
+      </div>
+
       <div class="overview-grid">
 
-        <div class="overview-card">
-          <div class="overview-card-label">
-            Usuários ativos
+        <section class="panel">
+
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">
+                Tickets recentes
+              </div>
+
+              <div class="panel-subtitle">
+                Últimos tickets registrados pelo bot.
+              </div>
+            </div>
+
+            <button
+              class="btn btn-secondary btn-small"
+              id="overview-tickets"
+            >
+              Ver todos
+            </button>
           </div>
 
-          <div
-            id="overview-ativos"
-            class="overview-card-value"
-          >
-            —
-          </div>
-        </div>
-
-        <div class="overview-card">
-          <div class="overview-card-label">
-            Tickets abertos
+          <div id="overview-recent-tickets">
+            <div class="loading-state">
+              Carregando...
+            </div>
           </div>
 
-          <div
-            id="overview-tickets"
-            class="overview-card-value"
-          >
-            —
-          </div>
-        </div>
+        </section>
 
-        <div class="overview-card">
-          <div class="overview-card-label">
-            Execuções
-          </div>
+        <section class="panel">
 
-          <div
-            id="overview-execucoes"
-            class="overview-card-value"
-          >
-            —
-          </div>
-        </div>
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">
+                Administradores ativos
+              </div>
 
-        <div class="overview-card">
-          <div class="overview-card-label">
-            Faturamento
+              <div class="panel-subtitle">
+                Administradores encontrados no Discord.
+              </div>
+            </div>
           </div>
 
-          <div
-            id="overview-faturamento"
-            class="overview-card-value"
-          >
-            —
+          <div id="overview-admins">
+            <div class="loading-state">
+              Carregando...
+            </div>
           </div>
-        </div>
+
+        </section>
 
       </div>
 
-      <section class="overview-section">
+      <div class="overview-grid overview-grid-bottom">
 
-        <div class="overview-section-header">
+        <section class="panel">
 
-          <h2 class="overview-section-title">
-            Tickets recentes
-          </h2>
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">
+                Atividade recente
+              </div>
 
-          <button
-            id="overview-open-tickets"
-            class="overview-section-link"
-            type="button"
-          >
-            Ver todos
-          </button>
+              <div class="panel-subtitle">
+                Últimas ações registradas na auditoria.
+              </div>
+            </div>
 
-        </div>
-
-        <div
-          id="overview-tickets-list"
-          class="overview-list"
-        >
-          <div class="overview-empty">
-            Carregando tickets...
+            <button
+              class="btn btn-secondary btn-small"
+              id="overview-audit"
+            >
+              Auditoria
+            </button>
           </div>
-        </div>
 
-      </section>
-
-      <section class="overview-section">
-
-        <div class="overview-section-header">
-
-          <h2 class="overview-section-title">
-            Administradores ativos
-          </h2>
-
-        </div>
-
-        <div
-          id="overview-admins"
-          class="overview-admins"
-        >
-          <div class="overview-empty">
-            Carregando administradores...
+          <div id="overview-audit-list">
+            <div class="loading-state">
+              Carregando...
+            </div>
           </div>
-        </div>
 
-      </section>
+        </section>
+
+        <section class="panel">
+
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">
+                Status do sistema
+              </div>
+
+              <div class="panel-subtitle">
+                Conectividade da infraestrutura RD4X.
+              </div>
+            </div>
+          </div>
+
+          <div class="system-status">
+
+            <div class="system-status-item">
+              <div class="system-status-icon success">
+                <svg class="icon">
+                  <use href="#i-check"></use>
+                </svg>
+              </div>
+
+              <div>
+                <div class="system-status-title">
+                  API RD4X
+                </div>
+
+                <div class="system-status-subtitle">
+                  Conectada
+                </div>
+              </div>
+
+              <span class="status-dot online"></span>
+            </div>
+
+            <div class="system-status-item">
+              <div class="system-status-icon success">
+                <svg class="icon">
+                  <use href="#i-check"></use>
+                </svg>
+              </div>
+
+              <div>
+                <div class="system-status-title">
+                  Discord
+                </div>
+
+                <div class="system-status-subtitle">
+                  Bot operacional
+                </div>
+              </div>
+
+              <span class="status-dot online"></span>
+            </div>
+
+            <div class="system-status-item">
+              <div class="system-status-icon success">
+                <svg class="icon">
+                  <use href="#i-check"></use>
+                </svg>
+              </div>
+
+              <div>
+                <div class="system-status-title">
+                  Dashboard
+                </div>
+
+                <div class="system-status-subtitle">
+                  Worker online
+                </div>
+              </div>
+
+              <span class="status-dot online"></span>
+            </div>
+
+          </div>
+
+        </section>
+
+      </div>
 
     </div>
+
+    <style>
+      .overview-page {
+        padding-bottom:40px;
+      }
+
+      .overview-page .page-header {
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:16px;
+        margin-bottom:22px;
+      }
+
+      .overview-page .page-title {
+        font-size:24px;
+        font-weight:700;
+        color:var(--text-primary);
+      }
+
+      .overview-page .page-subtitle {
+        margin-top:5px;
+        font-size:13px;
+        color:var(--text-secondary);
+      }
+
+      .overview-cards {
+        display:grid;
+        grid-template-columns:
+          repeat(6, minmax(0, 1fr));
+        gap:12px;
+        margin-bottom:18px;
+      }
+
+      .overview-card {
+        min-height:110px;
+        padding:17px;
+        border:1px solid var(--border);
+        border-radius:14px;
+        background:var(--card);
+      }
+
+      .overview-card-label {
+        font-size:12px;
+        color:var(--text-secondary);
+        margin-bottom:10px;
+      }
+
+      .overview-card-value {
+        font-size:25px;
+        font-weight:700;
+        color:var(--text-primary);
+      }
+
+      .overview-card-description {
+        margin-top:5px;
+        font-size:11px;
+        color:var(--text-secondary);
+      }
+
+      .overview-grid {
+        display:grid;
+        grid-template-columns:
+          minmax(0, 1.45fr)
+          minmax(320px, .85fr);
+        gap:16px;
+        margin-bottom:16px;
+      }
+
+      .overview-grid-bottom {
+        grid-template-columns:
+          minmax(0, 1.45fr)
+          minmax(320px, .85fr);
+      }
+
+      .overview-page .panel {
+        overflow:hidden;
+      }
+
+      .overview-page .panel-header {
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+        padding:17px 18px;
+        border-bottom:1px solid var(--border);
+      }
+
+      .overview-page .panel-title {
+        font-size:14px;
+        font-weight:700;
+        color:var(--text-primary);
+      }
+
+      .overview-page .panel-subtitle {
+        margin-top:4px;
+        font-size:11px;
+        color:var(--text-secondary);
+      }
+
+      .btn-small {
+        height:34px;
+        padding:0 11px;
+        font-size:12px;
+      }
+
+      .recent-list {
+        display:flex;
+        flex-direction:column;
+      }
+
+      .recent-ticket {
+        display:grid;
+        grid-template-columns:
+          minmax(120px, 1fr)
+          100px
+          95px;
+        gap:12px;
+        align-items:center;
+        padding:14px 18px;
+        border-bottom:1px solid var(--border);
+        cursor:pointer;
+        transition:.15s ease;
+      }
+
+      .recent-ticket:last-child {
+        border-bottom:0;
+      }
+
+      .recent-ticket:hover {
+        background:rgba(255,255,255,.025);
+      }
+
+      .recent-ticket-name {
+        font-size:13px;
+        font-weight:600;
+        color:var(--text-primary);
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+      }
+
+      .recent-ticket-user {
+        margin-top:4px;
+        font-size:11px;
+        color:var(--text-secondary);
+      }
+
+      .recent-ticket-status {
+        font-size:11px;
+        font-weight:600;
+      }
+
+      .recent-ticket-priority {
+        text-align:right;
+        font-size:11px;
+        color:var(--text-secondary);
+      }
+
+      .overview-empty {
+        padding:35px 18px;
+        text-align:center;
+        color:var(--text-secondary);
+        font-size:12px;
+      }
+
+      .admin-list {
+        display:flex;
+        flex-direction:column;
+      }
+
+      .admin-item {
+        display:flex;
+        align-items:center;
+        gap:12px;
+        padding:14px 18px;
+        border-bottom:1px solid var(--border);
+      }
+
+      .admin-item:last-child {
+        border-bottom:0;
+      }
+
+      .admin-avatar {
+        width:38px;
+        height:38px;
+        flex:0 0 38px;
+        border-radius:50%;
+        object-fit:cover;
+        background:var(--background);
+        border:1px solid var(--border);
+      }
+
+      .admin-avatar-fallback {
+        width:38px;
+        height:38px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        border-radius:50%;
+        background:var(--background);
+        border:1px solid var(--border);
+        font-weight:700;
+        color:var(--text-secondary);
+      }
+
+      .admin-name {
+        font-size:13px;
+        font-weight:600;
+        color:var(--text-primary);
+      }
+
+      .admin-role {
+        margin-top:3px;
+        font-size:11px;
+        color:var(--text-secondary);
+      }
+
+      .admin-status {
+        margin-left:auto;
+        display:flex;
+        align-items:center;
+        gap:6px;
+        font-size:10px;
+        color:var(--text-secondary);
+      }
+
+      .status-dot {
+        width:7px;
+        height:7px;
+        border-radius:50%;
+        background:var(--text-secondary);
+      }
+
+      .status-dot.online {
+        background:var(--success);
+      }
+
+      .audit-list {
+        display:flex;
+        flex-direction:column;
+      }
+
+      .audit-item {
+        display:grid;
+        grid-template-columns:
+          120px
+          minmax(100px, .7fr)
+          minmax(90px, .6fr)
+          minmax(90px, .8fr);
+        gap:12px;
+        align-items:center;
+        padding:13px 18px;
+        border-bottom:1px solid var(--border);
+      }
+
+      .audit-item:last-child {
+        border-bottom:0;
+      }
+
+      .audit-item-time {
+        font-size:10px;
+        color:var(--text-secondary);
+        white-space:nowrap;
+      }
+
+      .audit-item-actor {
+        font-size:12px;
+        font-weight:600;
+        color:var(--text-primary);
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+      }
+
+      .audit-item-action {
+        display:inline-flex;
+        width:max-content;
+        max-width:100%;
+        padding:4px 7px;
+        border-radius:6px;
+        border:1px solid var(--border);
+        background:rgba(255,255,255,.04);
+        color:var(--text-primary);
+        font-size:10px;
+        font-weight:600;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+      }
+
+      .audit-item-target {
+        font-size:11px;
+        color:var(--text-secondary);
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+      }
+
+      .system-status {
+        display:flex;
+        flex-direction:column;
+      }
+
+      .system-status-item {
+        display:flex;
+        align-items:center;
+        gap:12px;
+        padding:16px 18px;
+        border-bottom:1px solid var(--border);
+      }
+
+      .system-status-item:last-child {
+        border-bottom:0;
+      }
+
+      .system-status-icon {
+        width:34px;
+        height:34px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        border-radius:9px;
+        background:rgba(255,255,255,.04);
+      }
+
+      .system-status-icon.success {
+        color:var(--success);
+      }
+
+      .system-status-title {
+        font-size:12px;
+        font-weight:600;
+        color:var(--text-primary);
+      }
+
+      .system-status-subtitle {
+        margin-top:3px;
+        font-size:10px;
+        color:var(--text-secondary);
+      }
+
+      .system-status-item .status-dot {
+        margin-left:auto;
+      }
+
+      .skeleton {
+        border-radius:6px;
+        background:rgba(255,255,255,.07);
+        animation:pulse 1.3s infinite;
+      }
+
+      .skeleton-small {
+        width:55%;
+        height:11px;
+        margin-bottom:13px;
+      }
+
+      .skeleton-large {
+        width:40%;
+        height:26px;
+      }
+
+      @keyframes pulse {
+        0%,100% {
+          opacity:.45;
+        }
+
+        50% {
+          opacity:.9;
+        }
+      }
+
+      @media (max-width:1200px) {
+        .overview-cards {
+          grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width:900px) {
+        .overview-grid,
+        .overview-grid-bottom {
+          grid-template-columns:1fr;
+        }
+      }
+
+      @media (max-width:600px) {
+        .overview-page .page-header {
+          align-items:flex-start;
+        }
+
+        .overview-cards {
+          grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+        }
+
+        .recent-ticket {
+          grid-template-columns:1fr auto;
+        }
+
+        .recent-ticket-priority {
+          text-align:left;
+        }
+
+        .audit-item {
+          grid-template-columns:1fr 1fr;
+        }
+      }
+    </style>
   `;
 
-  const refreshButton =
-    document.getElementById(
-      'overview-refresh'
-    );
-
-  function escape(value) {
-    if (
-      window.Utils &&
-      typeof Utils.escapeHtml ===
-        'function'
-    ) {
-      return Utils.escapeHtml(
-        String(value ?? '')
+  const escape =
+    value =>
+      Utils.escapeHtml(
+        value === null ||
+        value === undefined
+          ? ''
+          : String(value)
       );
-    }
 
-    return String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-  function formatMoney(value) {
-    return new Intl.NumberFormat(
-      'pt-BR',
-      {
-        style: 'currency',
-        currency: 'BRL'
-      }
-    ).format(
-      Number(value) || 0
-    );
+  function formatNumber(value) {
+    return Number(
+      value || 0
+    ).toLocaleString('pt-BR');
   }
 
   function formatDate(value) {
-    if (!value) {
+    if (!value) return '—';
+
+    const date =
+      new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
       return '—';
     }
 
-    const timestamp =
-      typeof value === 'number'
-        ? value
-        : new Date(value).getTime();
-
-    if (
-      !Number.isFinite(timestamp)
-    ) {
-      return '—';
-    }
-
-    return new Intl.DateTimeFormat(
+    return date.toLocaleString(
       'pt-BR',
       {
-        dateStyle: 'short',
-        timeStyle: 'short'
+        dateStyle:'short',
+        timeStyle:'short'
       }
-    ).format(timestamp);
+    );
   }
 
-  function ticketStatus(
-    status
-  ) {
-    const value =
-      String(status || '')
-        .toLowerCase();
+  function normalizeTickets(response) {
+    const data =
+      Array.isArray(response)
+        ? response
+        : response?.data;
 
-    if (
-      value === 'em_atendimento' ||
-      value === 'atendimento' ||
-      value === 'attending'
-    ) {
-      return {
-        key: 'attending',
-        label: 'Em atendimento'
-      };
+    if (!Array.isArray(data)) {
+      return [];
     }
 
-    if (
-      value === 'closed' ||
-      value === 'fechado' ||
-      value === 'encerrado'
-    ) {
-      return {
-        key: 'closed',
-        label: 'Encerrado'
-      };
-    }
-
-    return {
-      key: 'open',
-      label: 'Aberto'
-    };
-  }
-
-  function normalizeTicket(
-    item
-  ) {
-    return {
+    return data.map(ticket => ({
       channelId:
-        item.channelId ||
-        item.id ||
+        ticket.channelId ||
+        ticket.id ||
         '',
-
-      channelName:
-        item.channelName ||
-        item.name ||
-        (
-          item.channelId
-            ? `ticket-${item.channelId}`
-            : 'Ticket'
-        ),
 
       username:
-        item.username ||
-        item.user ||
-        'Desconhecido',
-
-      userId:
-        item.userId ||
-        '',
+        ticket.username ||
+        ticket.nick ||
+        'Usuário',
 
       status:
-        item.status ||
+        ticket.status ||
         'open',
 
       prioridade:
-        item.prioridade ||
+        ticket.prioridade ||
         'normal',
 
       ultimoContato:
-        item.ultimoContato ||
+        ticket.ultimoContato ||
         null
-    };
+    }));
   }
 
-  async function loadOverview() {
+  function normalizeAdmins(response) {
+    const data =
+      Array.isArray(response)
+        ? response
+        : response?.data;
 
-    refreshButton.disabled =
-      true;
+    return Array.isArray(data)
+      ? data
+      : [];
+  }
 
-    try {
+  function normalizeAudit(response) {
+    const data =
+      Array.isArray(response)
+        ? response
+        : response?.data;
 
-      const [
-        overviewResponse,
-        ticketsResponse,
-        adminsResponse
-      ] = await Promise.all([
-        Api.getOverview(),
-        Api.getTickets(),
-        Api.getAdmins()
-      ]);
-
-      const overview =
-        overviewResponse?.data ||
-        overviewResponse ||
-        {};
-
-      const ticketsRaw =
-        Array.isArray(
-          ticketsResponse
-        )
-          ? ticketsResponse
-          : Array.isArray(
-              ticketsResponse?.data
-            )
-              ? ticketsResponse.data
-              : [];
-
-      const adminsRaw =
-        Array.isArray(
-          adminsResponse
-        )
-          ? adminsResponse
-          : Array.isArray(
-              adminsResponse?.data
-            )
-              ? adminsResponse.data
-              : [];
-
-      document.getElementById(
-        'overview-ativos'
-      ).textContent =
-        Number(
-          overview.ativos || 0
-        );
-
-      document.getElementById(
-        'overview-tickets'
-      ).textContent =
-        Number(
-          overview.ticketsAbertos || 0
-        );
-
-      document.getElementById(
-        'overview-execucoes'
-      ).textContent =
-        Number(
-          overview.execucoes || 0
-        );
-
-      document.getElementById(
-        'overview-faturamento'
-      ).textContent =
-        formatMoney(
-          overview.faturamento
-        );
-
-      renderTickets(
-        ticketsRaw
-          .map(normalizeTicket)
-          .slice(0, 8)
-      );
-
-      renderAdmins(
-        adminsRaw
-      );
-
-    } catch (error) {
-
-      console.error(
-        '[OVERVIEW]',
-        error
-      );
-
-      document.getElementById(
-        'overview-tickets-list'
-      ).innerHTML = `
-        <div class="overview-empty">
-          Não foi possível carregar os tickets.
-        </div>
-      `;
-
-      document.getElementById(
-        'overview-admins'
-      ).innerHTML = `
-        <div class="overview-empty">
-          Não foi possível carregar os administradores.
-        </div>
-      `;
-
-      if (
-        window.Notifications
-      ) {
-        Notifications.error(
-          'Erro ao atualizar o Overview.'
-        );
-      }
-
-    } finally {
-
-      refreshButton.disabled =
-        false;
+    if (!Array.isArray(data)) {
+      return [];
     }
+
+    return data
+      .map(event => ({
+        id:
+          event?.id ||
+          '',
+
+        at:
+          event?.at ||
+          event?.createdAt ||
+          null,
+
+        actor:
+          event?.actor ||
+          'Sistema',
+
+        action:
+          event?.action ||
+          'unknown',
+
+        target:
+          event?.target ||
+          ''
+      }))
+      .sort((a, b) => {
+        const ta =
+          a.at
+            ? new Date(a.at).getTime()
+            : 0;
+
+        const tb =
+          b.at
+            ? new Date(b.at).getTime()
+            : 0;
+
+        return tb - ta;
+      });
   }
 
-  function renderTickets(
-    tickets
-  ) {
+  function renderCards(data) {
+    const cards = [
+      {
+        label:'Usuários ativos',
+        value:data.ativos,
+        description:'Licenças ativas'
+      },
+
+      {
+        label:'Tickets abertos',
+        value:data.ticketsAbertos,
+        description:'Atendimentos em andamento'
+      },
+
+      {
+        label:'Execuções',
+        value:data.execucoes,
+        description:'Execuções registradas'
+      },
+
+      {
+        label:'Vendas',
+        value:data.vendas,
+        description:'Vendas registradas'
+      },
+
+      {
+        label:'Faturamento',
+        value:
+          `R$ ${Number(
+            data.faturamento || 0
+          ).toLocaleString(
+            'pt-BR',
+            {
+              minimumFractionDigits:2,
+              maximumFractionDigits:2
+            }
+          )}`,
+        description:'Faturamento acumulado'
+      },
+
+      {
+        label:'Incidentes',
+        value:data.incidentesAbertos,
+        description:'Incidentes abertos'
+      }
+    ];
+
+    document.getElementById(
+      'overview-cards'
+    ).innerHTML =
+      cards.map(card => `
+        <div class="overview-card">
+
+          <div class="overview-card-label">
+            ${escape(card.label)}
+          </div>
+
+          <div class="overview-card-value">
+            ${escape(
+              typeof card.value === 'number'
+                ? formatNumber(card.value)
+                : card.value
+            )}
+          </div>
+
+          <div class="overview-card-description">
+            ${escape(card.description)}
+          </div>
+
+        </div>
+      `).join('');
+  }
+
+  function renderTickets(tickets) {
     const container =
       document.getElementById(
-        'overview-tickets-list'
+        'overview-recent-tickets'
       );
 
-    if (!tickets.length) {
+    const recent =
+      [...tickets]
+        .sort((a, b) => {
+          const ta =
+            Number(a.ultimoContato || 0);
+
+          const tb =
+            Number(b.ultimoContato || 0);
+
+          return tb - ta;
+        })
+        .slice(0, 6);
+
+    if (!recent.length) {
       container.innerHTML = `
         <div class="overview-empty">
           Nenhum ticket encontrado.
         </div>
       `;
-
       return;
     }
 
-    container.innerHTML =
-      tickets
-        .map(ticket => {
+    container.innerHTML = `
+      <div class="recent-list">
 
-          const status =
-            ticketStatus(
-              ticket.status
-            );
+        ${recent.map(ticket => `
+          <div
+            class="recent-ticket"
+            data-ticket="${escape(
+              ticket.channelId
+            )}"
+          >
 
-          return `
-            <div
-              class="overview-ticket"
-              data-ticket-id="${escape(
-                ticket.channelId
-              )}"
-            >
-
-              <div class="overview-ticket-main">
-
-                <div class="overview-ticket-name">
-                  ${escape(
-                    ticket.channelName
-                  )}
-                </div>
-
-                <div class="overview-ticket-user">
-                  ${escape(
-                    ticket.username
-                  )}
-                </div>
-
+            <div>
+              <div class="recent-ticket-name">
+                #${escape(
+                  ticket.channelId ||
+                  'ticket'
+                )}
               </div>
 
-              <div class="overview-ticket-right">
-
-                <span
-                  class="overview-ticket-status ${status.key}"
-                >
-                  ${status.label}
-                </span>
-
+              <div class="recent-ticket-user">
+                ${escape(ticket.username)}
               </div>
-
             </div>
-          `;
-        })
-        .join('');
+
+            <div class="recent-ticket-status">
+              ${escape(ticket.status)}
+            </div>
+
+            <div class="recent-ticket-priority">
+              ${escape(ticket.prioridade)}
+            </div>
+
+          </div>
+        `).join('')}
+
+      </div>
+    `;
 
     container
-      .querySelectorAll(
-        '[data-ticket-id]'
-      )
+      .querySelectorAll('.recent-ticket')
       .forEach(element => {
-
         element.addEventListener(
           'click',
           () => {
+            const id =
+              element.dataset.ticket;
+
             window.location.hash =
-              `#/tickets?q=${
-                encodeURIComponent(
-                  element.dataset.ticketId
-                )
-              }`;
+              `#/tickets?q=${encodeURIComponent(id)}`;
           }
         );
-
       });
   }
 
-  function renderAdmins(
-    admins
-  ) {
+  function renderAdmins(admins) {
     const container =
       document.getElementById(
         'overview-admins'
@@ -744,17 +921,17 @@ window.renderOverview = async function renderOverview(
           Nenhum administrador encontrado.
         </div>
       `;
-
       return;
     }
 
-    container.innerHTML =
-      admins
-        .map(admin => {
+    container.innerHTML = `
+      <div class="admin-list">
+
+        ${admins.slice(0, 8).map(admin => {
 
           const avatar =
             admin.avatar ||
-            admin.user?.avatar ||
+            admin.displayAvatarURL ||
             '';
 
           const name =
@@ -763,60 +940,249 @@ window.renderOverview = async function renderOverview(
             admin.tag ||
             'Administrador';
 
-          const status =
-            admin.status === 'online'
-              ? 'Online'
-              : 'Offline';
+          const role =
+            admin.role ||
+            'Administrador';
+
+          const online =
+            admin.status === 'online';
 
           return `
-            <div class="overview-admin">
+            <div class="admin-item">
 
               ${
                 avatar
                   ? `
                     <img
-                      class="overview-admin-avatar"
+                      class="admin-avatar"
                       src="${escape(avatar)}"
                       alt=""
-                    />
+                    >
                   `
                   : `
-                    <div
-                      class="overview-admin-avatar"
-                    ></div>
+                    <div class="admin-avatar-fallback">
+                      ${escape(
+                        name
+                          .charAt(0)
+                          .toUpperCase()
+                      )}
+                    </div>
                   `
               }
 
-              <div class="overview-admin-info">
-
-                <div class="overview-admin-name">
+              <div>
+                <div class="admin-name">
                   ${escape(name)}
                 </div>
 
-                <div
-                  class="overview-admin-status"
-                  style="${
-                    status === 'Offline'
-                      ? 'color:var(--text-secondary)'
+                <div class="admin-role">
+                  ${escape(role)}
+                </div>
+              </div>
+
+              <div class="admin-status">
+
+                <span
+                  class="status-dot ${
+                    online
+                      ? 'online'
                       : ''
                   }"
-                >
-                  ${status}
-                </div>
+                ></span>
+
+                ${
+                  online
+                    ? 'Online'
+                    : 'Offline'
+                }
 
               </div>
 
             </div>
           `;
-        })
-        .join('');
+        }).join('')}
+
+      </div>
+    `;
+  }
+
+  function renderAudit(audit) {
+    const container =
+      document.getElementById(
+        'overview-audit-list'
+      );
+
+    const recent =
+      audit.slice(0, 7);
+
+    if (!recent.length) {
+      container.innerHTML = `
+        <div class="overview-empty">
+          Nenhuma atividade registrada.
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="audit-list">
+
+        ${recent.map(event => `
+          <div class="audit-item">
+
+            <div class="audit-item-time">
+              ${escape(
+                formatDate(event.at)
+              )}
+            </div>
+
+            <div class="audit-item-actor">
+              ${escape(event.actor)}
+            </div>
+
+            <div>
+              <span class="audit-item-action">
+                ${escape(event.action)}
+              </span>
+            </div>
+
+            <div class="audit-item-target">
+              ${escape(
+                event.target || '—'
+              )}
+            </div>
+
+          </div>
+        `).join('')}
+
+      </div>
+    `;
+  }
+
+  async function load() {
+    const cards =
+      document.getElementById(
+        'overview-cards'
+      );
+
+    cards.innerHTML =
+      [1,2,3,4,5,6].map(() => `
+        <div class="overview-card skeleton-card">
+          <div class="skeleton skeleton-small"></div>
+          <div class="skeleton skeleton-large"></div>
+        </div>
+      `).join('');
+
+    try {
+      const [
+        overviewResponse,
+        ticketsResponse,
+        adminsResponse,
+        auditResponse
+      ] = await Promise.all([
+        Api.getOverview(),
+        Api.getTickets(),
+        Api.getAdmins(),
+        Api.getAudit()
+      ]);
+
+      const overview =
+        overviewResponse?.data ||
+        overviewResponse ||
+        {};
+
+      const tickets =
+        normalizeTickets(
+          ticketsResponse
+        );
+
+      const admins =
+        normalizeAdmins(
+          adminsResponse
+        );
+
+      const audit =
+        normalizeAudit(
+          auditResponse
+        );
+
+      renderCards({
+        ativos:
+          overview.ativos || 0,
+
+        ticketsAbertos:
+          overview.ticketsAbertos || 0,
+
+        execucoes:
+          overview.execucoes || 0,
+
+        vendas:
+          overview.vendas || 0,
+
+        faturamento:
+          overview.faturamento || 0,
+
+        incidentesAbertos:
+          overview.incidentesAbertos || 0
+      });
+
+      renderTickets(tickets);
+      renderAdmins(admins);
+      renderAudit(audit);
+
+    } catch (error) {
+      console.error(
+        '[OVERVIEW]',
+        error
+      );
+
+      Notifications.error(
+        'Erro ao atualizar a visão geral.'
+      );
+
+      document.getElementById(
+        'overview-cards'
+      ).innerHTML = `
+        <div
+          class="overview-card"
+          style="grid-column:1/-1"
+        >
+          <div
+            style="
+              color:var(--danger);
+              font-weight:600
+            "
+          >
+            Não foi possível carregar os dados.
+          </div>
+
+          <div
+            style="
+              margin-top:6px;
+              color:var(--text-secondary);
+              font-size:12px
+            "
+          >
+            ${escape(
+              error?.message ||
+              'Erro desconhecido'
+            )}
+          </div>
+        </div>
+      `;
+    }
   }
 
   document
-    .getElementById(
-      'overview-open-tickets'
-    )
-    ?.addEventListener(
+    .getElementById('overview-refresh')
+    .addEventListener(
+      'click',
+      load
+    );
+
+  document
+    .getElementById('overview-tickets')
+    .addEventListener(
       'click',
       () => {
         window.location.hash =
@@ -824,10 +1190,15 @@ window.renderOverview = async function renderOverview(
       }
     );
 
-  refreshButton.addEventListener(
-    'click',
-    loadOverview
-  );
+  document
+    .getElementById('overview-audit')
+    .addEventListener(
+      'click',
+      () => {
+        window.location.hash =
+          '#/audit';
+      }
+    );
 
-  await loadOverview();
+  await load();
 };
