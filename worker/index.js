@@ -13,8 +13,15 @@ export default {
       );
     }
 
-    // Endpoint do proxy
-    if (url.pathname !== "/api/rd4x/overview") {
+    // Rotas permitidas
+    const routes = {
+      "/api/rd4x/overview": "/api/dashboard/overview",
+      "/api/rd4x/admins": "/api/dashboard/admins"
+    };
+
+    const targetPath = routes[url.pathname];
+
+    if (!targetPath) {
       return new Response(
         JSON.stringify({ error: "Endpoint não encontrado" }),
         {
@@ -24,7 +31,7 @@ export default {
       );
     }
 
-    // Verifica se as variáveis existem
+    // Verifica as variáveis
     if (!env.RD4X_API_URL || !env.DASHBOARD_API_KEY) {
       return new Response(
         JSON.stringify({
@@ -39,7 +46,7 @@ export default {
 
     try {
       const response = await fetch(
-        `${env.RD4X_API_URL}/api/dashboard/overview`,
+        `${env.RD4X_API_URL}${targetPath}`,
         {
           method: "GET",
           headers: {
@@ -61,6 +68,8 @@ export default {
       });
 
     } catch (error) {
+      console.error("[WORKER] Erro:", error);
+
       return new Response(
         JSON.stringify({
           error: "Erro ao conectar com a API RD4X"
