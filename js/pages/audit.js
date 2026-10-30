@@ -1,542 +1,169 @@
 /* ============================================================
-   RD4X DASHBOARD V10 — AUDITORIA REAL
+   RD4X DASHBOARD V10 — Auditoria
+   Auditoria real conectada à API RD4X
    ============================================================ */
 'use strict';
 
-window.renderAudit = async function (content, params = {}) {
-  const PAGE_SIZE = 50;
+window.renderAudit = async function renderAudit(
+  content,
+  params = {}
+) {
+  const state = {
+    data: [],
+    loading: true,
+    search: params.q || '',
+    action: 'all'
+  };
+
+  const escape = value =>
+    typeof Utils !== 'undefined' &&
+    typeof Utils.escapeHtml === 'function'
+      ? Utils.escapeHtml(String(value ?? ''))
+      : String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+
+  const formatDate = value => {
+    if (!value) return '—';
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return '—';
+    }
+
+    return date.toLocaleString('pt-BR', {
+      dateStyle: 'short',
+      timeStyle: 'medium'
+    });
+  };
+
+  const getArray = response => {
+    if (!response) return [];
+
+    if (Array.isArray(response)) {
+      return response;
+    }
+
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+
+    if (
+      response.data &&
+      Array.isArray(response.data.data)
+    ) {
+      return response.data.data;
+    }
+
+    return [];
+  };
+
+  const normalize = item => {
+    if (!item || typeof item !== 'object') {
+      return null;
+    }
 
-  content.innerHTML = `
-    <div class="page audit-page">
-
-      <div class="page-header">
-        <div>
-          <div class="page-title">Auditoria</div>
-          <div class="page-subtitle">
-            Histórico real de ações administrativas do RD4X.
-          </div>
-        </div>
-
-        <button class="btn btn-secondary" id="audit-refresh">
-          <svg class="icon">
-            <use href="#i-refresh"></use>
-          </svg>
-          Atualizar
-        </button>
-      </div>
-
-      <div class="audit-stats" id="audit-stats">
-        <div class="stat-card">
-          <div class="stat-label">Eventos</div>
-          <div class="stat-value">—</div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-label">Hoje</div>
-          <div class="stat-value">—</div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-label">Administradores</div>
-          <div class="stat-value">—</div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-label">Ações</div>
-          <div class="stat-value">—</div>
-        </div>
-      </div>
-
-      <div class="panel audit-panel">
-
-        <div class="audit-toolbar">
-
-          <div class="search-box">
-            <svg class="icon">
-              <use href="#i-search"></use>
-            </svg>
-
-            <input
-              type="text"
-              id="audit-search"
-              placeholder="Buscar por administrador, ação, alvo..."
-              autocomplete="off"
-            >
-          </div>
-
-          <select id="audit-action-filter" class="select">
-            <option value="">Todas as ações</option>
-          </select>
-
-          <select id="audit-date-filter" class="select">
-            <option value="">Todas as datas</option>
-            <option value="today">Hoje</option>
-            <option value="7">Últimos 7 dias</option>
-            <option value="30">Últimos 30 dias</option>
-          </select>
-
-        </div>
-
-        <div id="audit-table">
-          <div class="loading-state">
-            Carregando auditoria...
-          </div>
-        </div>
-
-      </div>
-
-    </div>
-
-    <style>
-      .audit-page {
-        padding-bottom: 40px;
-      }
-
-      .audit-page .page-header {
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        gap:16px;
-        margin-bottom:22px;
-      }
-
-      .audit-page .page-title {
-        font-size:24px;
-        font-weight:700;
-        color:var(--text-primary);
-      }
-
-      .audit-page .page-subtitle {
-        margin-top:5px;
-        font-size:13px;
-        color:var(--text-secondary);
-      }
-
-      .audit-stats {
-        display:grid;
-        grid-template-columns:
-          repeat(4, minmax(0, 1fr));
-        gap:14px;
-        margin-bottom:18px;
-      }
-
-      .audit-stats .stat-card {
-        padding:18px;
-        border:1px solid var(--border);
-        border-radius:14px;
-        background:var(--card);
-      }
-
-      .audit-stats .stat-label {
-        font-size:12px;
-        color:var(--text-secondary);
-        margin-bottom:8px;
-      }
-
-      .audit-stats .stat-value {
-        font-size:24px;
-        font-weight:700;
-        color:var(--text-primary);
-      }
-
-      .audit-panel {
-        overflow:hidden;
-      }
-
-      .audit-toolbar {
-        display:flex;
-        align-items:center;
-        gap:10px;
-        padding:16px;
-        border-bottom:1px solid var(--border);
-        flex-wrap:wrap;
-      }
-
-      .search-box {
-        position:relative;
-        flex:1;
-        min-width:220px;
-      }
-
-      .search-box .icon {
-        position:absolute;
-        left:12px;
-        top:50%;
-        transform:translateY(-50%);
-        width:16px;
-        height:16px;
-        color:var(--text-secondary);
-      }
-
-      .search-box input {
-        width:100%;
-        height:40px;
-        padding:0 12px 0 38px;
-        border:1px solid var(--border);
-        border-radius:9px;
-        background:var(--background);
-        color:var(--text-primary);
-        outline:none;
-      }
-
-      .search-box input:focus {
-        border-color:var(--accent);
-      }
-
-      .select {
-        height:40px;
-        padding:0 12px;
-        border:1px solid var(--border);
-        border-radius:9px;
-        background:var(--background);
-        color:var(--text-primary);
-        outline:none;
-      }
-
-      .audit-table-wrap {
-        width:100%;
-        overflow-x:auto;
-      }
-
-      .audit-table {
-        width:100%;
-        border-collapse:collapse;
-        min-width:850px;
-      }
-
-      .audit-table th {
-        text-align:left;
-        padding:13px 16px;
-        font-size:11px;
-        font-weight:700;
-        text-transform:uppercase;
-        letter-spacing:.04em;
-        color:var(--text-secondary);
-        border-bottom:1px solid var(--border);
-        white-space:nowrap;
-      }
-
-      .audit-table td {
-        padding:14px 16px;
-        border-bottom:1px solid var(--border);
-        font-size:13px;
-        color:var(--text-primary);
-        vertical-align:middle;
-      }
-
-      .audit-table tr:last-child td {
-        border-bottom:0;
-      }
-
-      .audit-table tbody tr {
-        transition:.15s ease;
-      }
-
-      .audit-table tbody tr:hover {
-        background:rgba(255,255,255,.025);
-      }
-
-      .audit-time {
-        white-space:nowrap;
-        color:var(--text-secondary);
-      }
-
-      .audit-actor {
-        font-weight:600;
-      }
-
-      .audit-target {
-        color:var(--text-secondary);
-      }
-
-      .audit-action {
-        display:inline-flex;
-        align-items:center;
-        padding:4px 8px;
-        border-radius:7px;
-        background:rgba(255,255,255,.06);
-        border:1px solid var(--border);
-        font-size:11px;
-        font-weight:600;
-      }
-
-      .audit-details {
-        max-width:320px;
-        color:var(--text-secondary);
-        white-space:nowrap;
-        overflow:hidden;
-        text-overflow:ellipsis;
-      }
-
-      .audit-empty {
-        padding:55px 20px;
-        text-align:center;
-        color:var(--text-secondary);
-      }
-
-      .audit-empty-title {
-        margin-bottom:5px;
-        font-size:15px;
-        font-weight:600;
-        color:var(--text-primary);
-      }
-
-      .audit-pagination {
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
-        gap:12px;
-        padding:14px 16px;
-        border-top:1px solid var(--border);
-      }
-
-      .audit-page-info {
-        font-size:12px;
-        color:var(--text-secondary);
-      }
-
-      .audit-pagination-actions {
-        display:flex;
-        gap:8px;
-      }
-
-      .audit-detail-modal {
-        position:fixed;
-        inset:0;
-        z-index:9999;
-        display:none;
-        align-items:center;
-        justify-content:center;
-        padding:20px;
-        background:rgba(0,0,0,.65);
-      }
-
-      .audit-detail-modal.open {
-        display:flex;
-      }
-
-      .audit-detail-box {
-        width:min(650px, 100%);
-        max-height:85vh;
-        overflow:auto;
-        padding:22px;
-        border:1px solid var(--border);
-        border-radius:16px;
-        background:var(--card);
-        box-shadow:0 20px 60px rgba(0,0,0,.35);
-      }
-
-      .audit-detail-head {
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        gap:12px;
-        margin-bottom:18px;
-      }
-
-      .audit-detail-title {
-        font-size:18px;
-        font-weight:700;
-      }
-
-      .audit-detail-grid {
-        display:grid;
-        grid-template-columns:
-          repeat(2, minmax(0, 1fr));
-        gap:12px;
-      }
-
-      .audit-detail-field {
-        padding:12px;
-        border:1px solid var(--border);
-        border-radius:10px;
-      }
-
-      .audit-detail-label {
-        font-size:11px;
-        color:var(--text-secondary);
-        margin-bottom:5px;
-        text-transform:uppercase;
-      }
-
-      .audit-detail-value {
-        font-size:13px;
-        color:var(--text-primary);
-        word-break:break-word;
-      }
-
-      .audit-json {
-        margin-top:14px;
-        padding:14px;
-        border-radius:10px;
-        background:var(--background);
-        border:1px solid var(--border);
-        overflow:auto;
-        font-size:12px;
-        line-height:1.5;
-        color:var(--text-secondary);
-      }
-
-      @media (max-width:900px) {
-        .audit-stats {
-          grid-template-columns:
-            repeat(2, minmax(0, 1fr));
-        }
-      }
-
-      @media (max-width:600px) {
-        .audit-page .page-header {
-          align-items:flex-start;
-        }
-
-        .audit-stats {
-          grid-template-columns:1fr 1fr;
-        }
-
-        .audit-toolbar {
-          align-items:stretch;
-        }
-
-        .search-box,
-        .select {
-          width:100%;
-        }
-
-        .audit-detail-grid {
-          grid-template-columns:1fr;
-        }
-      }
-    </style>
-
-    <div class="audit-detail-modal" id="audit-modal">
-      <div class="audit-detail-box">
-
-        <div class="audit-detail-head">
-          <div class="audit-detail-title">
-            Detalhes da auditoria
-          </div>
-
-          <button
-            class="btn btn-secondary"
-            id="audit-modal-close"
-          >
-            Fechar
-          </button>
-        </div>
-
-        <div id="audit-modal-content"></div>
-
-      </div>
-    </div>
-  `;
-
-  const table =
-    document.getElementById('audit-table');
-
-  const searchInput =
-    document.getElementById('audit-search');
-
-  const actionFilter =
-    document.getElementById('audit-action-filter');
-
-  const dateFilter =
-    document.getElementById('audit-date-filter');
-
-  const refreshButton =
-    document.getElementById('audit-refresh');
-
-  const modal =
-    document.getElementById('audit-modal');
-
-  const modalClose =
-    document.getElementById('audit-modal-close');
-
-  const modalContent =
-    document.getElementById('audit-modal-content');
-
-  let events = [];
-  let filtered = [];
-  let page = 1;
-
-  const escape =
-    value =>
-      Utils.escapeHtml(
-        value === null ||
-        value === undefined
-          ? ''
-          : String(value)
-      );
-
-  function normalizeEvent(event) {
     return {
       id:
-        event?.id ||
-        event?._id ||
-        cryptoRandomFallback(),
+        item.id ||
+        item._id ||
+        '',
 
       at:
-        event?.at ||
-        event?.createdAt ||
-        event?.timestamp ||
+        item.at ||
+        item.createdAt ||
+        item.created_at ||
+        item.timestamp ||
         null,
 
       actor:
-        event?.actor ||
-        event?.actorTag ||
-        event?.admin ||
+        item.actor ||
+        item.actorTag ||
+        item.user ||
+        item.username ||
         'Sistema',
 
       action:
-        event?.action ||
-        event?.type ||
+        item.action ||
+        item.type ||
         'unknown',
 
       target:
-        event?.target ||
-        event?.nick ||
-        event?.user ||
+        item.target ||
+        item.nick ||
+        item.channel ||
         '',
 
       details:
-        event?.details ||
+        item.details ||
         {}
     };
-  }
+  };
 
-  function cryptoRandomFallback() {
-    return `audit-${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2)}`;
-  }
+  const actionLabel = action => {
+    const labels = {
+      release: 'Liberação',
+      revoke_panel: 'Revogar painel',
+      blacklist: 'Blacklist',
+      unblacklist: 'Remover blacklist',
+      reset_hwid: 'Reset HWID',
+      ticket_takeover: 'Assumir ticket',
+      ticket_priority: 'Prioridade',
+      ticket_tag: 'Tag de ticket',
+      ticket_note: 'Nota de ticket',
+      ticket_close: 'Fechar ticket',
+      ticket_reopen: 'Reabrir ticket',
+      login: 'Login',
+      logout: 'Logout',
+      expiration: 'Expiração',
+      system: 'Sistema'
+    };
 
-  function formatDate(value) {
-    if (!value) return '—';
+    return labels[action] ||
+      String(action || 'Ação')
+        .replace(/_/g, ' ');
+  };
 
-    const date =
-      new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-      return String(value);
+  const actionClass = action => {
+    if (
+      [
+        'release',
+        'ticket_reopen',
+        'unblacklist',
+        'login'
+      ].includes(action)
+    ) {
+      return 'audit-green';
     }
 
-    return date.toLocaleString(
-      'pt-BR',
-      {
-        dateStyle:'short',
-        timeStyle:'short'
-      }
-    );
-  }
+    if (
+      [
+        'blacklist',
+        'revoke_panel',
+        'ticket_close',
+        'reset_hwid'
+      ].includes(action)
+    ) {
+      return 'audit-red';
+    }
 
-  function startOfDay(date) {
-    return new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate()
-    ).getTime();
-  }
+    if (
+      [
+        'ticket_priority',
+        'ticket_takeover'
+      ].includes(action)
+    ) {
+      return 'audit-yellow';
+    }
 
-  function detailText(details) {
+    return 'audit-neutral';
+  };
+
+  const detailsText = details => {
     if (
       details === null ||
       details === undefined
@@ -545,453 +172,838 @@ window.renderAudit = async function (content, params = {}) {
     }
 
     if (
-      typeof details === 'string' ||
-      typeof details === 'number' ||
-      typeof details === 'boolean'
+      typeof details === 'string'
     ) {
-      return String(details);
+      return details;
     }
 
     try {
-      return JSON.stringify(details);
+      return JSON.stringify(
+        details,
+        null,
+        2
+      );
     } catch {
-      return '[detalhes]';
+      return String(details);
     }
-  }
+  };
 
-  function updateStats() {
-    const todayStart =
-      startOfDay(new Date());
-
-    const today =
-      events.filter(event => {
-        if (!event.at) return false;
-
-        const date =
-          new Date(event.at);
-
-        if (Number.isNaN(date.getTime())) {
-          return false;
-        }
-
-        return date.getTime() >= todayStart;
-      }).length;
-
-    const actors =
-      new Set(
-        events
-          .map(event => event.actor)
-          .filter(Boolean)
-      ).size;
-
-    const actions =
-      new Set(
-        events
-          .map(event => event.action)
-          .filter(Boolean)
-      ).size;
-
-    const cards =
-      document.querySelectorAll(
-        '#audit-stats .stat-value'
-      );
-
-    if (cards[0]) cards[0].textContent =
-      events.length.toLocaleString('pt-BR');
-
-    if (cards[1]) cards[1].textContent =
-      today.toLocaleString('pt-BR');
-
-    if (cards[2]) cards[2].textContent =
-      actors.toLocaleString('pt-BR');
-
-    if (cards[3]) cards[3].textContent =
-      actions.toLocaleString('pt-BR');
-  }
-
-  function populateActions() {
-    const actions =
-      [...new Set(
-        events
-          .map(event => event.action)
-          .filter(Boolean)
-      )]
-      .sort((a, b) =>
-        String(a).localeCompare(
-          String(b),
-          'pt-BR'
-        )
-      );
-
-    actionFilter.innerHTML = `
-      <option value="">Todas as ações</option>
-      ${actions.map(action => `
-        <option value="${escape(action)}">
-          ${escape(action)}
-        </option>
-      `).join('')}
-    `;
-  }
-
-  function applyFilters() {
+  const getFiltered = () => {
     const query =
-      searchInput.value
+      state.search
         .trim()
         .toLowerCase();
 
-    const action =
-      actionFilter.value;
+    return state.data.filter(item => {
+      if (
+        state.action !== 'all' &&
+        item.action !== state.action
+      ) {
+        return false;
+      }
 
-    const date =
-      dateFilter.value;
+      if (!query) {
+        return true;
+      }
 
-    const now =
-      Date.now();
+      return [
+        item.id,
+        item.actor,
+        item.action,
+        item.target,
+        detailsText(item.details)
+      ]
+        .filter(Boolean)
+        .some(value =>
+          String(value)
+            .toLowerCase()
+            .includes(query)
+        );
+    });
+  };
 
-    const limit =
-      date === 'today'
-        ? startOfDay(new Date())
-        : date
-          ? now -
-            Number(date) *
-            86400000
-          : null;
+  const render = () => {
+    const filtered =
+      getFiltered();
 
-    filtered =
-      events.filter(event => {
+    const actions = [
+      ...new Set(
+        state.data
+          .map(item => item.action)
+          .filter(Boolean)
+      )
+    ].sort();
 
-        if (action &&
-            event.action !== action) {
-          return false;
+    content.innerHTML = `
+      <style>
+        .audit-page {
+          display:flex;
+          flex-direction:column;
+          gap:18px;
         }
 
-        if (limit !== null) {
-          if (!event.at) return false;
+        .audit-header {
+          display:flex;
+          align-items:flex-start;
+          justify-content:space-between;
+          gap:16px;
+          flex-wrap:wrap;
+        }
 
-          const time =
-            new Date(event.at).getTime();
+        .audit-title {
+          margin:0;
+          color:var(--text);
+          font-size:24px;
+          font-weight:700;
+        }
 
-          if (Number.isNaN(time) ||
-              time < limit) {
-            return false;
+        .audit-subtitle {
+          margin-top:5px;
+          color:var(--muted);
+          font-size:13px;
+        }
+
+        .audit-actions {
+          display:flex;
+          gap:8px;
+        }
+
+        .audit-btn {
+          border:1px solid var(--border);
+          background:var(--panel);
+          color:var(--text);
+          border-radius:9px;
+          padding:9px 13px;
+          cursor:pointer;
+          font-size:13px;
+          font-weight:600;
+        }
+
+        .audit-btn:hover {
+          border-color:var(--accent);
+        }
+
+        .audit-stats {
+          display:grid;
+          grid-template-columns:
+            repeat(3,minmax(0,1fr));
+          gap:12px;
+        }
+
+        .audit-stat {
+          background:var(--panel);
+          border:1px solid var(--border);
+          border-radius:12px;
+          padding:16px;
+        }
+
+        .audit-stat-label {
+          color:var(--muted);
+          font-size:12px;
+          margin-bottom:8px;
+        }
+
+        .audit-stat-value {
+          color:var(--text);
+          font-size:22px;
+          font-weight:700;
+        }
+
+        .audit-toolbar {
+          display:flex;
+          gap:10px;
+          align-items:center;
+          justify-content:space-between;
+          flex-wrap:wrap;
+          padding:12px;
+          background:var(--panel);
+          border:1px solid var(--border);
+          border-radius:12px;
+        }
+
+        .audit-search {
+          flex:1;
+          min-width:220px;
+          border:1px solid var(--border);
+          background:transparent;
+          color:var(--text);
+          border-radius:8px;
+          padding:10px 12px;
+          outline:none;
+        }
+
+        .audit-search:focus {
+          border-color:var(--accent);
+        }
+
+        .audit-filter-wrap {
+          display:flex;
+          gap:6px;
+          flex-wrap:wrap;
+        }
+
+        .audit-filter {
+          border:1px solid var(--border);
+          background:transparent;
+          color:var(--muted);
+          border-radius:8px;
+          padding:8px 10px;
+          cursor:pointer;
+          font-size:11px;
+        }
+
+        .audit-filter.active {
+          color:var(--text);
+          border-color:var(--accent);
+          background:rgba(255,255,255,.04);
+        }
+
+        .audit-table-wrap {
+          overflow-x:auto;
+          background:var(--panel);
+          border:1px solid var(--border);
+          border-radius:12px;
+        }
+
+        .audit-table {
+          width:100%;
+          min-width:900px;
+          border-collapse:collapse;
+        }
+
+        .audit-table th {
+          padding:13px 14px;
+          text-align:left;
+          color:var(--muted);
+          font-size:11px;
+          font-weight:600;
+          border-bottom:1px solid var(--border);
+          white-space:nowrap;
+        }
+
+        .audit-table td {
+          padding:13px 14px;
+          color:var(--text);
+          font-size:12px;
+          border-bottom:1px solid var(--border);
+          vertical-align:middle;
+        }
+
+        .audit-table tr:last-child td {
+          border-bottom:0;
+        }
+
+        .audit-badge {
+          display:inline-flex;
+          align-items:center;
+          border-radius:999px;
+          padding:5px 9px;
+          font-size:10px;
+          font-weight:650;
+          white-space:nowrap;
+        }
+
+        .audit-green {
+          color:#4ade80;
+          background:rgba(74,222,128,.10);
+        }
+
+        .audit-red {
+          color:#f87171;
+          background:rgba(248,113,113,.10);
+        }
+
+        .audit-yellow {
+          color:#fbbf24;
+          background:rgba(251,191,36,.10);
+        }
+
+        .audit-neutral {
+          color:var(--muted);
+          background:rgba(255,255,255,.05);
+        }
+
+        .audit-actor {
+          font-weight:650;
+        }
+
+        .audit-target {
+          color:var(--muted);
+        }
+
+        .audit-id {
+          font-family:monospace;
+          font-size:10px;
+          color:var(--muted);
+        }
+
+        .audit-empty,
+        .audit-loading {
+          padding:45px 20px;
+          text-align:center;
+          color:var(--muted);
+        }
+
+        .audit-empty strong,
+        .audit-loading strong {
+          display:block;
+          color:var(--text);
+          margin-bottom:5px;
+        }
+
+        .audit-details {
+          max-width:280px;
+          white-space:nowrap;
+          overflow:hidden;
+          text-overflow:ellipsis;
+          color:var(--muted);
+          cursor:pointer;
+        }
+
+        .audit-modal-backdrop {
+          position:fixed;
+          inset:0;
+          z-index:9999;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          padding:20px;
+          background:rgba(0,0,0,.65);
+        }
+
+        .audit-modal {
+          width:min(700px,100%);
+          max-height:85vh;
+          overflow:auto;
+          background:var(--panel);
+          border:1px solid var(--border);
+          border-radius:14px;
+          box-shadow:0 20px 70px rgba(0,0,0,.45);
+        }
+
+        .audit-modal-head {
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:10px;
+          padding:15px 17px;
+          border-bottom:1px solid var(--border);
+        }
+
+        .audit-modal-title {
+          color:var(--text);
+          font-weight:700;
+        }
+
+        .audit-modal-close {
+          border:0;
+          background:transparent;
+          color:var(--muted);
+          cursor:pointer;
+          font-size:20px;
+        }
+
+        .audit-modal-body {
+          padding:17px;
+        }
+
+        .audit-detail-grid {
+          display:grid;
+          grid-template-columns:
+            repeat(2,minmax(0,1fr));
+          gap:12px;
+          margin-bottom:16px;
+        }
+
+        .audit-detail-box {
+          padding:12px;
+          border:1px solid var(--border);
+          border-radius:9px;
+        }
+
+        .audit-detail-label {
+          color:var(--muted);
+          font-size:10px;
+          margin-bottom:5px;
+        }
+
+        .audit-detail-value {
+          color:var(--text);
+          font-size:12px;
+          word-break:break-word;
+        }
+
+        .audit-json {
+          margin:0;
+          padding:13px;
+          border-radius:9px;
+          background:rgba(0,0,0,.2);
+          border:1px solid var(--border);
+          color:var(--text);
+          font-size:11px;
+          line-height:1.5;
+          overflow:auto;
+        }
+
+        @media(max-width:700px) {
+          .audit-stats {
+            grid-template-columns:1fr;
+          }
+
+          .audit-detail-grid {
+            grid-template-columns:1fr;
           }
         }
+      </style>
 
-        if (!query) {
-          return true;
-        }
+      <section class="audit-page">
 
-        const haystack =
-          [
-            event.id,
-            event.actor,
-            event.action,
-            event.target,
-            detailText(event.details)
-          ]
-          .join(' ')
-          .toLowerCase();
-
-        return haystack.includes(query);
-      });
-
-    page = 1;
-    renderTable();
-  }
-
-  function renderTable() {
-    const total =
-      filtered.length;
-
-    const totalPages =
-      Math.max(
-        1,
-        Math.ceil(total / PAGE_SIZE)
-      );
-
-    if (page > totalPages) {
-      page = totalPages;
-    }
-
-    const start =
-      (page - 1) *
-      PAGE_SIZE;
-
-    const rows =
-      filtered.slice(
-        start,
-        start + PAGE_SIZE
-      );
-
-    if (!rows.length) {
-      table.innerHTML = `
-        <div class="audit-empty">
-          <div class="audit-empty-title">
-            Nenhum evento encontrado
-          </div>
+        <header class="audit-header">
 
           <div>
-            Não existem registros
-            correspondentes aos filtros atuais.
+            <h1 class="audit-title">
+              Auditoria
+            </h1>
+
+            <div class="audit-subtitle">
+              Histórico real de ações executadas no RD4X.
+            </div>
           </div>
+
+          <div class="audit-actions">
+
+            <button
+              class="audit-btn"
+              id="audit-refresh"
+            >
+              Atualizar
+            </button>
+
+          </div>
+
+        </header>
+
+        <div class="audit-stats">
+
+          <div class="audit-stat">
+            <div class="audit-stat-label">
+              Eventos carregados
+            </div>
+
+            <div class="audit-stat-value">
+              ${state.data.length}
+            </div>
+          </div>
+
+          <div class="audit-stat">
+            <div class="audit-stat-label">
+              Administradores/atores
+            </div>
+
+            <div class="audit-stat-value">
+              ${
+                new Set(
+                  state.data
+                    .map(item => item.actor)
+                    .filter(Boolean)
+                ).size
+              }
+            </div>
+          </div>
+
+          <div class="audit-stat">
+            <div class="audit-stat-label">
+              Ações diferentes
+            </div>
+
+            <div class="audit-stat-value">
+              ${actions.length}
+            </div>
+          </div>
+
         </div>
-      `;
-      return;
-    }
 
-    table.innerHTML = `
-      <div class="audit-table-wrap">
+        <div class="audit-toolbar">
 
-        <table class="audit-table">
+          <input
+            id="audit-search"
+            class="audit-search"
+            type="search"
+            placeholder="Pesquisar ator, ação, alvo ou detalhes..."
+            value="${escape(state.search)}"
+          />
 
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Administrador</th>
-              <th>Ação</th>
-              <th>Alvo</th>
-              <th>Detalhes</th>
-            </tr>
-          </thead>
+          <div class="audit-filter-wrap">
 
-          <tbody>
-            ${rows.map((event, index) => `
-              <tr
-                class="audit-row"
-                data-index="${index}"
+            <button
+              class="audit-filter ${
+                state.action === 'all'
+                  ? 'active'
+                  : ''
+              }"
+              data-action="all"
+            >
+              Todas
+            </button>
+
+            ${actions.map(action => `
+              <button
+                class="audit-filter ${
+                  state.action === action
+                    ? 'active'
+                    : ''
+                }"
+                data-action="${escape(action)}"
               >
-                <td class="audit-time">
-                  ${escape(formatDate(event.at))}
-                </td>
-
-                <td>
-                  <div class="audit-actor">
-                    ${escape(event.actor)}
-                  </div>
-                </td>
-
-                <td>
-                  <span class="audit-action">
-                    ${escape(event.action)}
-                  </span>
-                </td>
-
-                <td class="audit-target">
-                  ${escape(event.target || '—')}
-                </td>
-
-                <td class="audit-details">
-                  ${escape(
-                    detailText(event.details) ||
-                    '—'
-                  )}
-                </td>
-              </tr>
+                ${escape(
+                  actionLabel(action)
+                )}
+              </button>
             `).join('')}
-          </tbody>
 
-        </table>
-
-      </div>
-
-      <div class="audit-pagination">
-
-        <div class="audit-page-info">
-          Mostrando
-          ${start + 1}
-          –
-          ${Math.min(
-            start + PAGE_SIZE,
-            total
-          )}
-          de
-          ${total}
-        </div>
-
-        <div class="audit-pagination-actions">
-
-          <button
-            class="btn btn-secondary"
-            id="audit-prev"
-            ${page <= 1 ? 'disabled' : ''}
-          >
-            Anterior
-          </button>
-
-          <button
-            class="btn btn-secondary"
-            id="audit-next"
-            ${page >= totalPages ? 'disabled' : ''}
-          >
-            Próxima
-          </button>
+          </div>
 
         </div>
 
-      </div>
+        <div class="audit-table-wrap">
+
+          ${
+            state.loading
+              ? `
+                <div class="audit-loading">
+                  <strong>
+                    Carregando auditoria...
+                  </strong>
+                  Buscando os eventos reais do RD4X.
+                </div>
+              `
+              : filtered.length === 0
+                ? `
+                  <div class="audit-empty">
+                    <strong>
+                      Nenhum evento encontrado
+                    </strong>
+
+                    ${
+                      state.search ||
+                      state.action !== 'all'
+                        ? 'Tente alterar os filtros.'
+                        : 'Ainda não existem eventos de auditoria.'
+                    }
+                  </div>
+                `
+                : `
+                  <table class="audit-table">
+
+                    <thead>
+                      <tr>
+                        <th>Data</th>
+                        <th>Ator</th>
+                        <th>Ação</th>
+                        <th>Alvo</th>
+                        <th>Detalhes</th>
+                        <th>ID</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+
+                      ${filtered.map((item, index) => `
+                        <tr>
+
+                          <td>
+                            ${formatDate(item.at)}
+                          </td>
+
+                          <td>
+                            <span class="audit-actor">
+                              ${escape(item.actor)}
+                            </span>
+                          </td>
+
+                          <td>
+                            <span
+                              class="audit-badge ${
+                                actionClass(
+                                  item.action
+                                )
+                              }"
+                            >
+                              ${escape(
+                                actionLabel(
+                                  item.action
+                                )
+                              )}
+                            </span>
+                          </td>
+
+                          <td>
+                            <span class="audit-target">
+                              ${escape(
+                                item.target || '—'
+                              )}
+                            </span>
+                          </td>
+
+                          <td>
+
+                            <div
+                              class="audit-details"
+                              data-audit-index="${index}"
+                              title="Ver detalhes"
+                            >
+                              ${escape(
+                                detailsText(
+                                  item.details
+                                ) || '—'
+                              )}
+                            </div>
+
+                          </td>
+
+                          <td>
+                            <span class="audit-id">
+                              ${escape(
+                                item.id || '—'
+                              )}
+                            </span>
+                          </td>
+
+                        </tr>
+                      `).join('')}
+
+                    </tbody>
+
+                  </table>
+                `
+          }
+
+        </div>
+
+      </section>
     `;
 
+    const search =
+      document.getElementById(
+        'audit-search'
+      );
+
+    if (search) {
+      search.addEventListener(
+        'input',
+        () => {
+          state.search =
+            search.value;
+
+          render();
+        }
+      );
+    }
+
     document
-      .querySelectorAll('.audit-row')
-      .forEach(row => {
-        row.addEventListener(
+      .querySelectorAll(
+        '.audit-filter'
+      )
+      .forEach(button => {
+        button.addEventListener(
           'click',
           () => {
-            const index =
-              Number(row.dataset.index);
+            state.action =
+              button.dataset.action ||
+              'all';
 
-            openDetails(rows[index]);
+            render();
           }
         );
       });
 
-    const prev =
+    const refresh =
       document.getElementById(
-        'audit-prev'
+        'audit-refresh'
       );
 
-    const next =
-      document.getElementById(
-        'audit-next'
-      );
-
-    if (prev) {
-      prev.addEventListener(
+    if (refresh) {
+      refresh.addEventListener(
         'click',
-        () => {
-          if (page <= 1) return;
-
-          page--;
-          renderTable();
-        }
+        load
       );
     }
 
-    if (next) {
-      next.addEventListener(
-        'click',
-        () => {
-          if (page >= totalPages) return;
+    document
+      .querySelectorAll(
+        '.audit-details'
+      )
+      .forEach(element => {
+        element.addEventListener(
+          'click',
+          () => {
+            const index =
+              Number(
+                element.dataset.auditIndex
+              );
 
-          page++;
-          renderTable();
-        }
+            const item =
+              filtered[index];
+
+            if (!item) return;
+
+            openDetails(item);
+          }
+        );
+      });
+  };
+
+  const openDetails = item => {
+    const existing =
+      document.getElementById(
+        'audit-modal-backdrop'
       );
+
+    if (existing) {
+      existing.remove();
     }
-  }
 
-  function openDetails(event) {
-    if (!event) return;
+    const backdrop =
+      document.createElement('div');
 
-    modalContent.innerHTML = `
-      <div class="audit-detail-grid">
+    backdrop.id =
+      'audit-modal-backdrop';
 
-        <div class="audit-detail-field">
-          <div class="audit-detail-label">
-            ID
+    backdrop.className =
+      'audit-modal-backdrop';
+
+    backdrop.innerHTML = `
+      <div
+        class="audit-modal"
+        role="dialog"
+        aria-modal="true"
+      >
+
+        <div class="audit-modal-head">
+
+          <div class="audit-modal-title">
+            Detalhes da auditoria
           </div>
 
-          <div class="audit-detail-value">
-            ${escape(event.id)}
-          </div>
+          <button
+            class="audit-modal-close"
+            id="audit-modal-close"
+          >
+            ×
+          </button>
+
         </div>
 
-        <div class="audit-detail-field">
-          <div class="audit-detail-label">
-            Data
+        <div class="audit-modal-body">
+
+          <div class="audit-detail-grid">
+
+            <div class="audit-detail-box">
+              <div class="audit-detail-label">
+                Data
+              </div>
+
+              <div class="audit-detail-value">
+                ${escape(
+                  formatDate(item.at)
+                )}
+              </div>
+            </div>
+
+            <div class="audit-detail-box">
+              <div class="audit-detail-label">
+                Ator
+              </div>
+
+              <div class="audit-detail-value">
+                ${escape(item.actor)}
+              </div>
+            </div>
+
+            <div class="audit-detail-box">
+              <div class="audit-detail-label">
+                Ação
+              </div>
+
+              <div class="audit-detail-value">
+                ${escape(
+                  actionLabel(
+                    item.action
+                  )
+                )}
+              </div>
+            </div>
+
+            <div class="audit-detail-box">
+              <div class="audit-detail-label">
+                Alvo
+              </div>
+
+              <div class="audit-detail-value">
+                ${escape(
+                  item.target || '—'
+                )}
+              </div>
+            </div>
+
           </div>
 
-          <div class="audit-detail-value">
-            ${escape(formatDate(event.at))}
-          </div>
-        </div>
+          <pre class="audit-json">${escape(
+            detailsText(
+              item.details
+            ) || 'Sem detalhes adicionais.'
+          )}</pre>
 
-        <div class="audit-detail-field">
-          <div class="audit-detail-label">
-            Administrador
-          </div>
-
-          <div class="audit-detail-value">
-            ${escape(event.actor)}
-          </div>
-        </div>
-
-        <div class="audit-detail-field">
-          <div class="audit-detail-label">
-            Ação
-          </div>
-
-          <div class="audit-detail-value">
-            ${escape(event.action)}
-          </div>
-        </div>
-
-        <div class="audit-detail-field">
-          <div class="audit-detail-label">
-            Alvo
-          </div>
-
-          <div class="audit-detail-value">
-            ${escape(event.target || '—')}
-          </div>
         </div>
 
       </div>
-
-      <pre class="audit-json">${escape(
-        JSON.stringify(
-          event.details || {},
-          null,
-          2
-        )
-      )}</pre>
     `;
 
-    modal.classList.add('open');
-  }
+    document.body.appendChild(
+      backdrop
+    );
 
-  function closeModal() {
-    modal.classList.remove('open');
-  }
+    const close = () =>
+      backdrop.remove();
+
+    document
+      .getElementById(
+        'audit-modal-close'
+      )
+      ?.addEventListener(
+        'click',
+        close
+      );
+
+    backdrop.addEventListener(
+      'click',
+      event => {
+        if (
+          event.target ===
+          backdrop
+        ) {
+          close();
+        }
+      }
+    );
+  };
 
   async function load() {
-    table.innerHTML = `
-      <div class="loading-state">
-        Carregando auditoria real...
-      </div>
-    `;
+    state.loading = true;
+    render();
 
     try {
       const response =
         await Api.getAudit();
 
-      const data =
-        Array.isArray(response)
-          ? response
-          : response?.data;
+      state.data =
+        getArray(response)
+          .map(normalize)
+          .filter(Boolean);
 
-      events =
-        Array.isArray(data)
-          ? data.map(normalizeEvent)
-          : [];
+      state.loading = false;
 
-      events.sort((a, b) => {
-        const ta =
-          a.at
-            ? new Date(a.at).getTime()
-            : 0;
-
-        const tb =
-          b.at
-            ? new Date(b.at).getTime()
-            : 0;
-
-        return tb - ta;
-      });
-
-      updateStats();
-      populateActions();
-      applyFilters();
+      render();
 
     } catch (error) {
       console.error(
@@ -999,65 +1011,45 @@ window.renderAudit = async function (content, params = {}) {
         error
       );
 
-      table.innerHTML = `
-        <div class="audit-empty">
+      state.loading = false;
 
-          <div
-            class="audit-empty-title"
-            style="color:var(--danger)"
+      content.innerHTML = `
+        <div
+          style="
+            padding:25px;
+            border-radius:12px;
+            border:1px solid rgba(248,113,113,.25);
+            background:rgba(248,113,113,.07);
+            color:#fca5a5;
+          "
+        >
+          <strong
+            style="
+              display:block;
+              color:var(--text);
+              margin-bottom:6px;
+            "
           >
-            Erro ao carregar auditoria
-          </div>
+            Não foi possível carregar a auditoria.
+          </strong>
 
-          <div>
-            ${escape(
-              error?.message ||
-              'Não foi possível carregar os registros.'
-            )}
-          </div>
-
+          ${escape(
+            error?.message ||
+            'Erro desconhecido.'
+          )}
         </div>
       `;
 
-      Notifications.error(
-        'Não foi possível carregar a auditoria.'
-      );
+      if (
+        typeof Notifications !== 'undefined' &&
+        typeof Notifications.error === 'function'
+      ) {
+        Notifications.error(
+          'Erro ao carregar auditoria.'
+        );
+      }
     }
   }
 
-  searchInput.addEventListener(
-    'input',
-    applyFilters
-  );
-
-  actionFilter.addEventListener(
-    'change',
-    applyFilters
-  );
-
-  dateFilter.addEventListener(
-    'change',
-    applyFilters
-  );
-
-  refreshButton.addEventListener(
-    'click',
-    load
-  );
-
-  modalClose.addEventListener(
-    'click',
-    closeModal
-  );
-
-  modal.addEventListener(
-    'click',
-    event => {
-      if (event.target === modal) {
-        closeModal();
-      }
-    }
-  );
-
   await load();
-};
+}; 
