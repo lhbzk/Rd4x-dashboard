@@ -1,5 +1,5 @@
 /* ============================================================
-   RD4X DASHBOARD V10 — OVERVIEW REAL
+   RD4X DASHBOARD V10 — OVERVIEW
    ============================================================ */
 'use strict';
 
@@ -11,6 +11,7 @@ window.renderOverview = async function (
     <div class="page overview-page">
 
       <div class="page-header">
+
         <div>
           <div class="page-title">
             Visão geral
@@ -30,6 +31,7 @@ window.renderOverview = async function (
           </svg>
           Atualizar
         </button>
+
       </div>
 
       <div
@@ -37,7 +39,7 @@ window.renderOverview = async function (
         id="overview-cards"
       >
         ${[1,2,3,4,5,6].map(() => `
-          <div class="overview-card skeleton-card">
+          <div class="overview-card">
             <div class="skeleton skeleton-small"></div>
             <div class="skeleton skeleton-large"></div>
           </div>
@@ -49,6 +51,7 @@ window.renderOverview = async function (
         <section class="panel">
 
           <div class="panel-header">
+
             <div>
               <div class="panel-title">
                 Tickets recentes
@@ -65,6 +68,7 @@ window.renderOverview = async function (
             >
               Ver todos
             </button>
+
           </div>
 
           <div id="overview-recent-tickets">
@@ -78,6 +82,7 @@ window.renderOverview = async function (
         <section class="panel">
 
           <div class="panel-header">
+
             <div>
               <div class="panel-title">
                 Administradores ativos
@@ -87,6 +92,7 @@ window.renderOverview = async function (
                 Administradores encontrados no Discord.
               </div>
             </div>
+
           </div>
 
           <div id="overview-admins">
@@ -99,30 +105,32 @@ window.renderOverview = async function (
 
       </div>
 
-      <div class="overview-grid overview-grid-bottom">
+      <div class="overview-grid">
 
         <section class="panel">
 
           <div class="panel-header">
+
             <div>
               <div class="panel-title">
-                Atividade recente
+                Releases recentes
               </div>
 
               <div class="panel-subtitle">
-                Últimas ações registradas na auditoria.
+                Últimas licenças registradas.
               </div>
             </div>
 
             <button
               class="btn btn-secondary btn-small"
-              id="overview-audit"
+              id="overview-releases"
             >
-              Auditoria
+              Ver todas
             </button>
+
           </div>
 
-          <div id="overview-audit-list">
+          <div id="overview-releases-list">
             <div class="loading-state">
               Carregando...
             </div>
@@ -133,84 +141,123 @@ window.renderOverview = async function (
         <section class="panel">
 
           <div class="panel-header">
+
             <div>
               <div class="panel-title">
-                Status do sistema
+                Atividade recente
               </div>
 
               <div class="panel-subtitle">
-                Conectividade da infraestrutura RD4X.
+                Últimas ações administrativas.
               </div>
             </div>
+
+            <button
+              class="btn btn-secondary btn-small"
+              id="overview-audit"
+            >
+              Auditoria
+            </button>
+
           </div>
 
-          <div class="system-status">
-
-            <div class="system-status-item">
-              <div class="system-status-icon success">
-                <svg class="icon">
-                  <use href="#i-check"></use>
-                </svg>
-              </div>
-
-              <div>
-                <div class="system-status-title">
-                  API RD4X
-                </div>
-
-                <div class="system-status-subtitle">
-                  Conectada
-                </div>
-              </div>
-
-              <span class="status-dot online"></span>
+          <div id="overview-audit-list">
+            <div class="loading-state">
+              Carregando...
             </div>
-
-            <div class="system-status-item">
-              <div class="system-status-icon success">
-                <svg class="icon">
-                  <use href="#i-check"></use>
-                </svg>
-              </div>
-
-              <div>
-                <div class="system-status-title">
-                  Discord
-                </div>
-
-                <div class="system-status-subtitle">
-                  Bot operacional
-                </div>
-              </div>
-
-              <span class="status-dot online"></span>
-            </div>
-
-            <div class="system-status-item">
-              <div class="system-status-icon success">
-                <svg class="icon">
-                  <use href="#i-check"></use>
-                </svg>
-              </div>
-
-              <div>
-                <div class="system-status-title">
-                  Dashboard
-                </div>
-
-                <div class="system-status-subtitle">
-                  Worker online
-                </div>
-              </div>
-
-              <span class="status-dot online"></span>
-            </div>
-
           </div>
 
         </section>
 
       </div>
+
+      <section class="panel">
+
+        <div class="panel-header">
+
+          <div>
+            <div class="panel-title">
+              Status do sistema
+            </div>
+
+            <div class="panel-subtitle">
+              Estado dos principais serviços RD4X.
+            </div>
+          </div>
+
+        </div>
+
+        <div class="system-status">
+
+          <div class="system-status-item">
+
+            <div class="system-status-icon success">
+              <svg class="icon">
+                <use href="#i-check"></use>
+              </svg>
+            </div>
+
+            <div>
+              <div class="system-status-title">
+                API RD4X
+              </div>
+
+              <div class="system-status-subtitle">
+                Conectada
+              </div>
+            </div>
+
+            <span class="status-dot online"></span>
+
+          </div>
+
+          <div class="system-status-item">
+
+            <div class="system-status-icon success">
+              <svg class="icon">
+                <use href="#i-check"></use>
+              </svg>
+            </div>
+
+            <div>
+              <div class="system-status-title">
+                Discord
+              </div>
+
+              <div class="system-status-subtitle">
+                Bot operacional
+              </div>
+            </div>
+
+            <span class="status-dot online"></span>
+
+          </div>
+
+          <div class="system-status-item">
+
+            <div class="system-status-icon success">
+              <svg class="icon">
+                <use href="#i-check"></use>
+              </svg>
+            </div>
+
+            <div>
+              <div class="system-status-title">
+                Dashboard
+              </div>
+
+              <div class="system-status-subtitle">
+                Worker online
+              </div>
+            </div>
+
+            <span class="status-dot online"></span>
+
+          </div>
+
+        </div>
+
+      </section>
 
     </div>
 
@@ -276,16 +323,10 @@ window.renderOverview = async function (
       .overview-grid {
         display:grid;
         grid-template-columns:
-          minmax(0, 1.45fr)
-          minmax(320px, .85fr);
+          minmax(0,1.45fr)
+          minmax(320px,.85fr);
         gap:16px;
         margin-bottom:16px;
-      }
-
-      .overview-grid-bottom {
-        grid-template-columns:
-          minmax(0, 1.45fr)
-          minmax(320px, .85fr);
       }
 
       .overview-page .panel {
@@ -319,7 +360,10 @@ window.renderOverview = async function (
         font-size:12px;
       }
 
-      .recent-list {
+      .recent-list,
+      .admin-list,
+      .release-list,
+      .audit-list {
         display:flex;
         flex-direction:column;
       }
@@ -327,7 +371,7 @@ window.renderOverview = async function (
       .recent-ticket {
         display:grid;
         grid-template-columns:
-          minmax(120px, 1fr)
+          minmax(120px,1fr)
           100px
           95px;
         gap:12px;
@@ -335,10 +379,12 @@ window.renderOverview = async function (
         padding:14px 18px;
         border-bottom:1px solid var(--border);
         cursor:pointer;
-        transition:.15s ease;
       }
 
-      .recent-ticket:last-child {
+      .recent-ticket:last-child,
+      .admin-item:last-child,
+      .release-item:last-child,
+      .audit-item:last-child {
         border-bottom:0;
       }
 
@@ -350,9 +396,6 @@ window.renderOverview = async function (
         font-size:13px;
         font-weight:600;
         color:var(--text-primary);
-        overflow:hidden;
-        text-overflow:ellipsis;
-        white-space:nowrap;
       }
 
       .recent-ticket-user {
@@ -372,18 +415,6 @@ window.renderOverview = async function (
         color:var(--text-secondary);
       }
 
-      .overview-empty {
-        padding:35px 18px;
-        text-align:center;
-        color:var(--text-secondary);
-        font-size:12px;
-      }
-
-      .admin-list {
-        display:flex;
-        flex-direction:column;
-      }
-
       .admin-item {
         display:flex;
         align-items:center;
@@ -392,18 +423,14 @@ window.renderOverview = async function (
         border-bottom:1px solid var(--border);
       }
 
-      .admin-item:last-child {
-        border-bottom:0;
-      }
-
       .admin-avatar {
         width:38px;
         height:38px;
         flex:0 0 38px;
         border-radius:50%;
         object-fit:cover;
-        background:var(--background);
         border:1px solid var(--border);
+        background:var(--background);
       }
 
       .admin-avatar-fallback {
@@ -413,10 +440,10 @@ window.renderOverview = async function (
         align-items:center;
         justify-content:center;
         border-radius:50%;
-        background:var(--background);
         border:1px solid var(--border);
-        font-weight:700;
+        background:var(--background);
         color:var(--text-secondary);
+        font-weight:700;
       }
 
       .admin-name {
@@ -440,47 +467,70 @@ window.renderOverview = async function (
         color:var(--text-secondary);
       }
 
-      .status-dot {
-        width:7px;
-        height:7px;
-        border-radius:50%;
-        background:var(--text-secondary);
+      .release-item {
+        display:grid;
+        grid-template-columns:
+          minmax(100px,1fr)
+          100px
+          110px;
+        gap:12px;
+        align-items:center;
+        padding:14px 18px;
+        border-bottom:1px solid var(--border);
       }
 
-      .status-dot.online {
-        background:var(--success);
+      .release-user {
+        font-size:13px;
+        font-weight:600;
+        color:var(--text-primary);
       }
 
-      .audit-list {
-        display:flex;
-        flex-direction:column;
+      .release-discord {
+        margin-top:3px;
+        font-size:10px;
+        color:var(--text-secondary);
+      }
+
+      .release-expiration {
+        font-size:11px;
+        color:var(--text-secondary);
+      }
+
+      .release-value {
+        text-align:right;
+        font-size:11px;
+        font-weight:600;
+        color:var(--text-primary);
+      }
+
+      .release-badge {
+        display:inline-flex;
+        padding:4px 7px;
+        border-radius:6px;
+        border:1px solid var(--border);
+        font-size:10px;
       }
 
       .audit-item {
         display:grid;
         grid-template-columns:
-          120px
-          minmax(100px, .7fr)
-          minmax(90px, .6fr)
-          minmax(90px, .8fr);
-        gap:12px;
+          105px
+          minmax(90px,.8fr)
+          minmax(80px,.6fr)
+          minmax(80px,1fr);
+        gap:10px;
         align-items:center;
         padding:13px 18px;
         border-bottom:1px solid var(--border);
       }
 
-      .audit-item:last-child {
-        border-bottom:0;
-      }
-
       .audit-item-time {
         font-size:10px;
         color:var(--text-secondary);
-        white-space:nowrap;
       }
 
       .audit-item-actor {
-        font-size:12px;
+        font-size:11px;
         font-weight:600;
         color:var(--text-primary);
         overflow:hidden;
@@ -495,21 +545,23 @@ window.renderOverview = async function (
         padding:4px 7px;
         border-radius:6px;
         border:1px solid var(--border);
-        background:rgba(255,255,255,.04);
-        color:var(--text-primary);
         font-size:10px;
-        font-weight:600;
+        color:var(--text-primary);
+      }
+
+      .audit-item-target {
+        font-size:10px;
+        color:var(--text-secondary);
         overflow:hidden;
         text-overflow:ellipsis;
         white-space:nowrap;
       }
 
-      .audit-item-target {
-        font-size:11px;
+      .overview-empty {
+        padding:35px 18px;
+        text-align:center;
         color:var(--text-secondary);
-        overflow:hidden;
-        text-overflow:ellipsis;
-        white-space:nowrap;
+        font-size:12px;
       }
 
       .system-status {
@@ -559,6 +611,17 @@ window.renderOverview = async function (
         margin-left:auto;
       }
 
+      .status-dot {
+        width:7px;
+        height:7px;
+        border-radius:50%;
+        background:var(--text-secondary);
+      }
+
+      .status-dot.online {
+        background:var(--success);
+      }
+
       .skeleton {
         border-radius:6px;
         background:rgba(255,255,255,.07);
@@ -589,13 +652,12 @@ window.renderOverview = async function (
       @media (max-width:1200px) {
         .overview-cards {
           grid-template-columns:
-            repeat(3, minmax(0, 1fr));
+            repeat(3,minmax(0,1fr));
         }
       }
 
       @media (max-width:900px) {
-        .overview-grid,
-        .overview-grid-bottom {
+        .overview-grid {
           grid-template-columns:1fr;
         }
       }
@@ -607,14 +669,16 @@ window.renderOverview = async function (
 
         .overview-cards {
           grid-template-columns:
-            repeat(2, minmax(0, 1fr));
+            repeat(2,minmax(0,1fr));
         }
 
-        .recent-ticket {
+        .recent-ticket,
+        .release-item {
           grid-template-columns:1fr auto;
         }
 
-        .recent-ticket-priority {
+        .recent-ticket-priority,
+        .release-value {
           text-align:left;
         }
 
@@ -640,13 +704,29 @@ window.renderOverview = async function (
     ).toLocaleString('pt-BR');
   }
 
+  function formatCurrency(value) {
+    return Number(
+      value || 0
+    ).toLocaleString(
+      'pt-BR',
+      {
+        style:'currency',
+        currency:'BRL'
+      }
+    );
+  }
+
   function formatDate(value) {
     if (!value) return '—';
 
     const date =
       new Date(value);
 
-    if (Number.isNaN(date.getTime())) {
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
       return '—';
     }
 
@@ -659,42 +739,7 @@ window.renderOverview = async function (
     );
   }
 
-  function normalizeTickets(response) {
-    const data =
-      Array.isArray(response)
-        ? response
-        : response?.data;
-
-    if (!Array.isArray(data)) {
-      return [];
-    }
-
-    return data.map(ticket => ({
-      channelId:
-        ticket.channelId ||
-        ticket.id ||
-        '',
-
-      username:
-        ticket.username ||
-        ticket.nick ||
-        'Usuário',
-
-      status:
-        ticket.status ||
-        'open',
-
-      prioridade:
-        ticket.prioridade ||
-        'normal',
-
-      ultimoContato:
-        ticket.ultimoContato ||
-        null
-    }));
-  }
-
-  function normalizeAdmins(response) {
+  function normalizeArray(response) {
     const data =
       Array.isArray(response)
         ? response
@@ -705,100 +750,56 @@ window.renderOverview = async function (
       : [];
   }
 
-  function normalizeAudit(response) {
-    const data =
-      Array.isArray(response)
-        ? response
-        : response?.data;
-
-    if (!Array.isArray(data)) {
-      return [];
+  function getReleaseStatus(item) {
+    if (
+      item.expiraEm === 'perm' ||
+      item.expiraEm === 'permanente'
+    ) {
+      return 'Permanente';
     }
 
-    return data
-      .map(event => ({
-        id:
-          event?.id ||
-          '',
-
-        at:
-          event?.at ||
-          event?.createdAt ||
-          null,
-
-        actor:
-          event?.actor ||
-          'Sistema',
-
-        action:
-          event?.action ||
-          'unknown',
-
-        target:
-          event?.target ||
-          ''
-      }))
-      .sort((a, b) => {
-        const ta =
-          a.at
-            ? new Date(a.at).getTime()
-            : 0;
-
-        const tb =
-          b.at
-            ? new Date(b.at).getTime()
-            : 0;
-
-        return tb - ta;
-      });
+    return 'Ativa';
   }
 
   function renderCards(data) {
     const cards = [
-      {
-        label:'Usuários ativos',
-        value:data.ativos,
-        description:'Licenças ativas'
-      },
+      [
+        'Usuários ativos',
+        data.ativos || 0,
+        'Licenças ativas'
+      ],
 
-      {
-        label:'Tickets abertos',
-        value:data.ticketsAbertos,
-        description:'Atendimentos em andamento'
-      },
+      [
+        'Tickets abertos',
+        data.ticketsAbertos || 0,
+        'Atendimentos'
+      ],
 
-      {
-        label:'Execuções',
-        value:data.execucoes,
-        description:'Execuções registradas'
-      },
+      [
+        'Execuções',
+        data.execucoes || 0,
+        'Execuções registradas'
+      ],
 
-      {
-        label:'Vendas',
-        value:data.vendas,
-        description:'Vendas registradas'
-      },
+      [
+        'Vendas',
+        data.vendas || 0,
+        'Vendas registradas'
+      ],
 
-      {
-        label:'Faturamento',
-        value:
-          `R$ ${Number(
-            data.faturamento || 0
-          ).toLocaleString(
-            'pt-BR',
-            {
-              minimumFractionDigits:2,
-              maximumFractionDigits:2
-            }
-          )}`,
-        description:'Faturamento acumulado'
-      },
+      [
+        'Faturamento',
+        formatCurrency(
+          data.faturamento || 0
+        ),
+        'Faturamento acumulado'
+      ],
 
-      {
-        label:'Incidentes',
-        value:data.incidentesAbertos,
-        description:'Incidentes abertos'
-      }
+      [
+        'Incidentes',
+        data.incidentesAbertos || 0,
+        'Incidentes abertos'
+      ]
     ];
 
     document.getElementById(
@@ -808,43 +809,46 @@ window.renderOverview = async function (
         <div class="overview-card">
 
           <div class="overview-card-label">
-            ${escape(card.label)}
+            ${escape(card[0])}
           </div>
 
           <div class="overview-card-value">
-            ${escape(
-              typeof card.value === 'number'
-                ? formatNumber(card.value)
-                : card.value
-            )}
+            ${
+              typeof card[1] === 'number'
+                ? formatNumber(card[1])
+                : escape(card[1])
+            }
           </div>
 
           <div class="overview-card-description">
-            ${escape(card.description)}
+            ${escape(card[2])}
           </div>
 
         </div>
       `).join('');
   }
 
-  function renderTickets(tickets) {
+  function renderTickets(response) {
+    const tickets =
+      normalizeArray(response);
+
     const container =
       document.getElementById(
         'overview-recent-tickets'
       );
 
     const recent =
-      [...tickets]
-        .sort((a, b) => {
-          const ta =
-            Number(a.ultimoContato || 0);
-
-          const tb =
-            Number(b.ultimoContato || 0);
-
-          return tb - ta;
-        })
-        .slice(0, 6);
+      tickets
+        .sort(
+          (a,b) =>
+            Number(
+              b.ultimoContato || 0
+            ) -
+            Number(
+              a.ultimoContato || 0
+            )
+        )
+        .slice(0,6);
 
     if (!recent.length) {
       container.innerHTML = `
@@ -862,7 +866,7 @@ window.renderOverview = async function (
           <div
             class="recent-ticket"
             data-ticket="${escape(
-              ticket.channelId
+              ticket.channelId || ''
             )}"
           >
 
@@ -875,16 +879,25 @@ window.renderOverview = async function (
               </div>
 
               <div class="recent-ticket-user">
-                ${escape(ticket.username)}
+                ${escape(
+                  ticket.username ||
+                  'Usuário'
+                )}
               </div>
             </div>
 
             <div class="recent-ticket-status">
-              ${escape(ticket.status)}
+              ${escape(
+                ticket.status ||
+                'unknown'
+              )}
             </div>
 
             <div class="recent-ticket-priority">
-              ${escape(ticket.prioridade)}
+              ${escape(
+                ticket.prioridade ||
+                'normal'
+              )}
             </div>
 
           </div>
@@ -899,17 +912,19 @@ window.renderOverview = async function (
         element.addEventListener(
           'click',
           () => {
-            const id =
-              element.dataset.ticket;
-
             window.location.hash =
-              `#/tickets?q=${encodeURIComponent(id)}`;
+              `#/tickets?q=${encodeURIComponent(
+                element.dataset.ticket
+              )}`;
           }
         );
       });
   }
 
-  function renderAdmins(admins) {
+  function renderAdmins(response) {
+    const admins =
+      normalizeArray(response);
+
     const container =
       document.getElementById(
         'overview-admins'
@@ -927,12 +942,7 @@ window.renderOverview = async function (
     container.innerHTML = `
       <div class="admin-list">
 
-        ${admins.slice(0, 8).map(admin => {
-
-          const avatar =
-            admin.avatar ||
-            admin.displayAvatarURL ||
-            '';
+        ${admins.slice(0,8).map(admin => {
 
           const name =
             admin.name ||
@@ -940,9 +950,9 @@ window.renderOverview = async function (
             admin.tag ||
             'Administrador';
 
-          const role =
-            admin.role ||
-            'Administrador';
+          const avatar =
+            admin.avatar ||
+            '';
 
           const online =
             admin.status === 'online';
@@ -976,7 +986,10 @@ window.renderOverview = async function (
                 </div>
 
                 <div class="admin-role">
-                  ${escape(role)}
+                  ${escape(
+                    admin.role ||
+                    'Administrador'
+                  )}
                 </div>
               </div>
 
@@ -990,11 +1003,7 @@ window.renderOverview = async function (
                   }"
                 ></span>
 
-                ${
-                  online
-                    ? 'Online'
-                    : 'Offline'
-                }
+                ${online ? 'Online' : 'Offline'}
 
               </div>
 
@@ -1006,16 +1015,127 @@ window.renderOverview = async function (
     `;
   }
 
-  function renderAudit(audit) {
+  function renderReleases(response) {
+    const releases =
+      normalizeArray(response);
+
+    const container =
+      document.getElementById(
+        'overview-releases-list'
+      );
+
+    const recent =
+      releases
+        .slice()
+        .sort((a,b) => {
+          const ta =
+            a.dataVenda
+              ? new Date(
+                  a.dataVenda
+                ).getTime()
+              : 0;
+
+          const tb =
+            b.dataVenda
+              ? new Date(
+                  b.dataVenda
+                ).getTime()
+              : 0;
+
+          return tb - ta;
+        })
+        .slice(0,6);
+
+    if (!recent.length) {
+      container.innerHTML = `
+        <div class="overview-empty">
+          Nenhuma release encontrada.
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="release-list">
+
+        ${recent.map(item => `
+          <div class="release-item">
+
+            <div>
+              <div class="release-user">
+                ${escape(
+                  item.nick ||
+                  item.username ||
+                  'Usuário'
+                )}
+              </div>
+
+              <div class="release-discord">
+                ${escape(
+                  item.discordId ||
+                  'Discord ID não informado'
+                )}
+              </div>
+            </div>
+
+            <div>
+              <span class="release-badge">
+                ${escape(
+                  getReleaseStatus(item)
+                )}
+              </span>
+
+              <div class="release-expiration">
+                ${escape(
+                  item.expiraEm === 'perm'
+                    ? 'Sem expiração'
+                    : formatDate(
+                        item.expiraEm
+                      )
+                )}
+              </div>
+            </div>
+
+            <div class="release-value">
+              ${escape(
+                formatCurrency(
+                  item.valorPago || 0
+                )
+              )}
+            </div>
+
+          </div>
+        `).join('')}
+
+      </div>
+    `;
+  }
+
+  function renderAudit(response) {
+    const audit =
+      normalizeArray(response)
+        .slice()
+        .sort((a,b) => {
+          const ta =
+            a.at
+              ? new Date(a.at).getTime()
+              : 0;
+
+          const tb =
+            b.at
+              ? new Date(b.at).getTime()
+              : 0;
+
+          return tb - ta;
+        })
+        .slice(0,7);
+
     const container =
       document.getElementById(
         'overview-audit-list'
       );
 
-    const recent =
-      audit.slice(0, 7);
-
-    if (!recent.length) {
+    if (!audit.length) {
       container.innerHTML = `
         <div class="overview-empty">
           Nenhuma atividade registrada.
@@ -1027,7 +1147,7 @@ window.renderOverview = async function (
     container.innerHTML = `
       <div class="audit-list">
 
-        ${recent.map(event => `
+        ${audit.map(event => `
           <div class="audit-item">
 
             <div class="audit-item-time">
@@ -1037,18 +1157,25 @@ window.renderOverview = async function (
             </div>
 
             <div class="audit-item-actor">
-              ${escape(event.actor)}
+              ${escape(
+                event.actor ||
+                'Sistema'
+              )}
             </div>
 
             <div>
               <span class="audit-item-action">
-                ${escape(event.action)}
+                ${escape(
+                  event.action ||
+                  'unknown'
+                )}
               </span>
             </div>
 
             <div class="audit-item-target">
               ${escape(
-                event.target || '—'
+                event.target ||
+                '—'
               )}
             </div>
 
@@ -1060,75 +1187,45 @@ window.renderOverview = async function (
   }
 
   async function load() {
-    const cards =
-      document.getElementById(
-        'overview-cards'
-      );
-
-    cards.innerHTML =
-      [1,2,3,4,5,6].map(() => `
-        <div class="overview-card skeleton-card">
-          <div class="skeleton skeleton-small"></div>
-          <div class="skeleton skeleton-large"></div>
-        </div>
-      `).join('');
-
     try {
       const [
-        overviewResponse,
-        ticketsResponse,
-        adminsResponse,
-        auditResponse
+        overview,
+        tickets,
+        admins,
+        audit,
+        releases
       ] = await Promise.all([
         Api.getOverview(),
         Api.getTickets(),
         Api.getAdmins(),
-        Api.getAudit()
+        Api.getAudit(),
+        Api.getReleases()
       ]);
 
-      const overview =
-        overviewResponse?.data ||
-        overviewResponse ||
+      const overviewData =
+        overview?.data ||
+        overview ||
         {};
 
-      const tickets =
-        normalizeTickets(
-          ticketsResponse
-        );
+      renderCards(
+        overviewData
+      );
 
-      const admins =
-        normalizeAdmins(
-          adminsResponse
-        );
+      renderTickets(
+        tickets
+      );
 
-      const audit =
-        normalizeAudit(
-          auditResponse
-        );
+      renderAdmins(
+        admins
+      );
 
-      renderCards({
-        ativos:
-          overview.ativos || 0,
+      renderAudit(
+        audit
+      );
 
-        ticketsAbertos:
-          overview.ticketsAbertos || 0,
-
-        execucoes:
-          overview.execucoes || 0,
-
-        vendas:
-          overview.vendas || 0,
-
-        faturamento:
-          overview.faturamento || 0,
-
-        incidentesAbertos:
-          overview.incidentesAbertos || 0
-      });
-
-      renderTickets(tickets);
-      renderAdmins(admins);
-      renderAudit(audit);
+      renderReleases(
+        releases
+      );
 
     } catch (error) {
       console.error(
@@ -1139,49 +1236,22 @@ window.renderOverview = async function (
       Notifications.error(
         'Erro ao atualizar a visão geral.'
       );
-
-      document.getElementById(
-        'overview-cards'
-      ).innerHTML = `
-        <div
-          class="overview-card"
-          style="grid-column:1/-1"
-        >
-          <div
-            style="
-              color:var(--danger);
-              font-weight:600
-            "
-          >
-            Não foi possível carregar os dados.
-          </div>
-
-          <div
-            style="
-              margin-top:6px;
-              color:var(--text-secondary);
-              font-size:12px
-            "
-          >
-            ${escape(
-              error?.message ||
-              'Erro desconhecido'
-            )}
-          </div>
-        </div>
-      `;
     }
   }
 
   document
-    .getElementById('overview-refresh')
+    .getElementById(
+      'overview-refresh'
+    )
     .addEventListener(
       'click',
       load
     );
 
   document
-    .getElementById('overview-tickets')
+    .getElementById(
+      'overview-tickets'
+    )
     .addEventListener(
       'click',
       () => {
@@ -1191,7 +1261,21 @@ window.renderOverview = async function (
     );
 
   document
-    .getElementById('overview-audit')
+    .getElementById(
+      'overview-releases'
+    )
+    .addEventListener(
+      'click',
+      () => {
+        window.location.hash =
+          '#/releases';
+      }
+    );
+
+  document
+    .getElementById(
+      'overview-audit'
+    )
     .addEventListener(
       'click',
       () => {
