@@ -2,52 +2,94 @@
    RD4X DASHBOARD V10 — Overview
    Visão geral com dados reais
    ============================================================ */
+
 'use strict';
 
 window.renderOverview = async function renderOverview(
   content
 ) {
-  const escape = value =>
-    typeof Utils !== 'undefined' &&
-    typeof Utils.escapeHtml === 'function'
-      ? Utils.escapeHtml(String(value ?? ''))
-      : String(value ?? '')
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#039;');
+
+  /* ==========================================================
+     HELPERS
+     ========================================================== */
+
+  const escape = value => {
+
+    if (
+      typeof Utils !== 'undefined' &&
+      typeof Utils.escapeHtml === 'function'
+    ) {
+      return Utils.escapeHtml(
+        String(value ?? '')
+      );
+    }
+
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+
 
   const formatDate = value => {
-    if (!value) return '—';
 
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
+    if (!value) {
       return '—';
     }
 
-    return date.toLocaleString('pt-BR', {
-      dateStyle: 'short',
-      timeStyle: 'short'
-    });
+    const date =
+      new Date(value);
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return '—';
+    }
+
+    return date.toLocaleString(
+      'pt-BR',
+      {
+        dateStyle: 'short',
+        timeStyle: 'short'
+      }
+    );
+
   };
 
-  const getArray = response => {
-    if (!response) return [];
 
-    if (Array.isArray(response)) {
+  const getArray = response => {
+
+    if (!response) {
+      return [];
+    }
+
+    if (
+      Array.isArray(response)
+    ) {
       return response;
     }
 
-    if (Array.isArray(response.data)) {
+    if (
+      Array.isArray(response.data)
+    ) {
       return response.data;
     }
 
     return [];
+
   };
 
+
+  /* ==========================================================
+     NORMALIZADORES
+     ========================================================== */
+
   const normalizeTicket = item => ({
+
     channelId:
       item.channelId ||
       item.id ||
@@ -91,9 +133,12 @@ window.renderOverview = async function renderOverview(
     ultimoContato:
       item.ultimoContato ||
       null
+
   });
 
+
   const normalizeAdmin = item => ({
+
     name:
       item.name ||
       item.username ||
@@ -117,9 +162,12 @@ window.renderOverview = async function renderOverview(
     role:
       item.role ||
       'Administrador'
+
   });
 
+
   const normalizeRelease = item => ({
+
     nick:
       item.nick ||
       item.username ||
@@ -143,11 +191,20 @@ window.renderOverview = async function renderOverview(
       item.createdAt ||
       item.at ||
       null
+
   });
 
+
+  /* ==========================================================
+     LOADING
+     ========================================================== */
+
   const renderLoading = () => {
+
     content.innerHTML = `
+
       <style>
+
         .overview-loading {
           display:flex;
           align-items:center;
@@ -155,45 +212,157 @@ window.renderOverview = async function renderOverview(
           min-height:260px;
           color:var(--muted);
         }
+
       </style>
 
       <div class="overview-loading">
         Carregando dados reais do RD4X...
       </div>
+
     `;
+
   };
+
 
   renderLoading();
 
+
+  /* ==========================================================
+     CARREGAMENTO DA API
+     ========================================================== */
+
   try {
-    const [
-      overviewResponse,
-      ticketsResponse,
-      adminsResponse,
-      releasesResponse
-    ] = await Promise.all([
-      Api.getOverview(),
-      Api.getTickets(),
-      Api.getAdmins(),
-      Api.getReleases()
-    ]);
+
+    /*
+     * A API principal é obrigatória.
+     *
+     * As APIs secundárias são independentes:
+     * se uma delas falhar, a página continua funcionando.
+     */
+
+    const overviewResponse =
+      await Api.getOverview();
+
 
     const overview =
       overviewResponse?.data ||
       overviewResponse ||
       {};
 
+
+    /* --------------------------------------------------------
+       TICKETS
+       -------------------------------------------------------- */
+
+    let ticketsResponse = {
+      success: false,
+      data: []
+    };
+
+    try {
+
+      ticketsResponse =
+        await Api.getTickets();
+
+    } catch (error) {
+
+      console.warn(
+        '[OVERVIEW] Falha ao carregar tickets:',
+        error
+      );
+
+    }
+
+
+    /* --------------------------------------------------------
+       ADMINISTRADORES
+       -------------------------------------------------------- */
+
+    let adminsResponse = {
+      success: false,
+      data: []
+    };
+
+    try {
+
+      adminsResponse =
+        await Api.getAdmins();
+
+    } catch (error) {
+
+      /*
+       * IMPORTANTE:
+       *
+       * Falha nos administradores NÃO derruba
+       * a Visão Geral inteira.
+       */
+
+      console.warn(
+        '[OVERVIEW] Falha ao carregar administradores:',
+        error
+      );
+
+    }
+
+
+    /* --------------------------------------------------------
+       RELEASES
+       -------------------------------------------------------- */
+
+    let releasesResponse = {
+      success: false,
+      data: []
+    };
+
+    try {
+
+      releasesResponse =
+        await Api.getReleases();
+
+    } catch (error) {
+
+      console.warn(
+        '[OVERVIEW] Falha ao carregar releases:',
+        error
+      );
+
+    }
+
+
+    /* ========================================================
+       NORMALIZAÇÃO
+       ======================================================== */
+
     const tickets =
-      getArray(ticketsResponse)
-        .map(normalizeTicket);
+      getArray(
+        ticketsResponse
+      )
+        .map(
+          normalizeTicket
+        );
+
 
     const admins =
-      getArray(adminsResponse)
-        .map(normalizeAdmin);
+      getArray(
+        adminsResponse
+      )
+        .map(
+          normalizeAdmin
+        );
+
 
     const releases =
-      getArray(releasesResponse)
-        .map(normalizeRelease);
+      getArray(
+        releasesResponse
+      )
+        .map(
+          normalizeRelease
+        );
+
+
+    /* ========================================================
+       INDICADORES
+       ======================================================== */
 
     const ativos =
       Number(
@@ -201,6 +370,7 @@ window.renderOverview = async function renderOverview(
         overview.activeUsers ??
         0
       ) || 0;
+
 
     const ticketsAbertos =
       Number(
@@ -212,6 +382,7 @@ window.renderOverview = async function renderOverview(
         ).length
       ) || 0;
 
+
     const execucoes =
       Number(
         overview.execucoes ??
@@ -219,17 +390,20 @@ window.renderOverview = async function renderOverview(
         0
       ) || 0;
 
+
     const vendas =
       Number(
         overview.vendas ??
         releases.length
       ) || 0;
 
+
     const faturamento =
       Number(
         overview.faturamento ??
         0
       ) || 0;
+
 
     const incidentes =
       Number(
@@ -238,15 +412,32 @@ window.renderOverview = async function renderOverview(
         0
       ) || 0;
 
+
+    /* ========================================================
+       TICKETS RECENTES
+       ======================================================== */
+
     const recentTickets =
       tickets
         .slice()
         .sort(
           (a, b) =>
-            Number(b.ultimoContato || 0) -
-            Number(a.ultimoContato || 0)
+            new Date(
+              b.ultimoContato || 0
+            ).getTime() -
+            new Date(
+              a.ultimoContato || 0
+            ).getTime()
         )
-        .slice(0, 6);
+        .slice(
+          0,
+          6
+        );
+
+
+    /* ========================================================
+       RELEASES RECENTES
+       ======================================================== */
 
     const recentReleases =
       releases
@@ -260,15 +451,26 @@ window.renderOverview = async function renderOverview(
               a.dataVenda || 0
             ).getTime()
         )
-        .slice(0, 5);
+        .slice(
+          0,
+          5
+        );
+
+
+    /* ========================================================
+       RENDER
+       ======================================================== */
 
     content.innerHTML = `
+
       <style>
+
         .overview-page {
           display:flex;
           flex-direction:column;
           gap:20px;
         }
+
 
         .overview-head {
           display:flex;
@@ -278,6 +480,7 @@ window.renderOverview = async function renderOverview(
           flex-wrap:wrap;
         }
 
+
         .overview-title {
           margin:0;
           font-size:24px;
@@ -285,16 +488,19 @@ window.renderOverview = async function renderOverview(
           color:var(--text);
         }
 
+
         .overview-subtitle {
           margin-top:5px;
           font-size:13px;
           color:var(--muted);
         }
 
+
         .overview-actions {
           display:flex;
           gap:8px;
         }
+
 
         .overview-refresh {
           border:1px solid var(--border);
@@ -306,9 +512,11 @@ window.renderOverview = async function renderOverview(
           font-weight:600;
         }
 
+
         .overview-refresh:hover {
           border-color:var(--accent);
         }
+
 
         .overview-grid {
           display:grid;
@@ -317,6 +525,7 @@ window.renderOverview = async function renderOverview(
           gap:12px;
         }
 
+
         .overview-card {
           background:var(--panel);
           border:1px solid var(--border);
@@ -324,17 +533,20 @@ window.renderOverview = async function renderOverview(
           padding:16px;
         }
 
+
         .overview-card-label {
           color:var(--muted);
           font-size:12px;
           margin-bottom:8px;
         }
 
+
         .overview-card-value {
           color:var(--text);
           font-size:22px;
           font-weight:700;
         }
+
 
         .overview-sections {
           display:grid;
@@ -344,12 +556,14 @@ window.renderOverview = async function renderOverview(
           gap:16px;
         }
 
+
         .overview-panel {
           background:var(--panel);
           border:1px solid var(--border);
           border-radius:12px;
           overflow:hidden;
         }
+
 
         .overview-panel-head {
           display:flex;
@@ -360,12 +574,14 @@ window.renderOverview = async function renderOverview(
           border-bottom:1px solid var(--border);
         }
 
+
         .overview-panel-title {
           margin:0;
           color:var(--text);
           font-size:14px;
           font-weight:700;
         }
+
 
         .overview-panel-link {
           border:0;
@@ -375,10 +591,12 @@ window.renderOverview = async function renderOverview(
           font-size:12px;
         }
 
+
         .overview-list {
           display:flex;
           flex-direction:column;
         }
+
 
         .overview-item {
           display:flex;
@@ -390,17 +608,21 @@ window.renderOverview = async function renderOverview(
           cursor:pointer;
         }
 
+
         .overview-item:last-child {
           border-bottom:0;
         }
+
 
         .overview-item:hover {
           background:rgba(255,255,255,.025);
         }
 
+
         .overview-item-main {
           min-width:0;
         }
+
 
         .overview-item-title {
           color:var(--text);
@@ -411,11 +633,13 @@ window.renderOverview = async function renderOverview(
           text-overflow:ellipsis;
         }
 
+
         .overview-item-sub {
           margin-top:3px;
           color:var(--muted);
           font-size:11px;
         }
+
 
         .overview-badge {
           flex-shrink:0;
@@ -426,25 +650,30 @@ window.renderOverview = async function renderOverview(
           white-space:nowrap;
         }
 
+
         .overview-green {
           color:#4ade80;
           background:rgba(74,222,128,.10);
         }
+
 
         .overview-yellow {
           color:#fbbf24;
           background:rgba(251,191,36,.10);
         }
 
+
         .overview-red {
           color:#f87171;
           background:rgba(248,113,113,.10);
         }
 
+
         .overview-purple {
           color:#a78bfa;
           background:rgba(167,139,250,.10);
         }
+
 
         .overview-admin {
           display:flex;
@@ -454,9 +683,11 @@ window.renderOverview = async function renderOverview(
           border-bottom:1px solid var(--border);
         }
 
+
         .overview-admin:last-child {
           border-bottom:0;
         }
+
 
         .overview-avatar {
           width:36px;
@@ -466,6 +697,7 @@ window.renderOverview = async function renderOverview(
           background:var(--border);
           flex-shrink:0;
         }
+
 
         .overview-avatar-fallback {
           width:36px;
@@ -479,10 +711,12 @@ window.renderOverview = async function renderOverview(
           flex-shrink:0;
         }
 
+
         .overview-admin-main {
           min-width:0;
           flex:1;
         }
+
 
         .overview-admin-name {
           color:var(--text);
@@ -490,11 +724,13 @@ window.renderOverview = async function renderOverview(
           font-weight:650;
         }
 
+
         .overview-admin-tag {
           color:var(--muted);
           font-size:11px;
           margin-top:2px;
         }
+
 
         .overview-empty {
           padding:25px 16px;
@@ -503,32 +739,45 @@ window.renderOverview = async function renderOverview(
           font-size:12px;
         }
 
+
         @media(max-width:1200px) {
+
           .overview-grid {
             grid-template-columns:
               repeat(3, minmax(0,1fr));
           }
+
         }
 
+
         @media(max-width:900px) {
+
           .overview-sections {
             grid-template-columns:1fr;
           }
+
         }
 
+
         @media(max-width:560px) {
+
           .overview-grid {
             grid-template-columns:
               repeat(2, minmax(0,1fr));
           }
+
         }
+
       </style>
 
+
       <section class="overview-page">
+
 
         <header class="overview-head">
 
           <div>
+
             <h1 class="overview-title">
               Visão Geral
             </h1>
@@ -536,7 +785,9 @@ window.renderOverview = async function renderOverview(
             <div class="overview-subtitle">
               Dados atuais do RD4X Dashboard.
             </div>
+
           </div>
+
 
           <div class="overview-actions">
 
@@ -551,9 +802,12 @@ window.renderOverview = async function renderOverview(
 
         </header>
 
+
         <div class="overview-grid">
 
+
           <div class="overview-card">
+
             <div class="overview-card-label">
               Usuários ativos
             </div>
@@ -561,9 +815,12 @@ window.renderOverview = async function renderOverview(
             <div class="overview-card-value">
               ${ativos}
             </div>
+
           </div>
 
+
           <div class="overview-card">
+
             <div class="overview-card-label">
               Tickets abertos
             </div>
@@ -571,9 +828,12 @@ window.renderOverview = async function renderOverview(
             <div class="overview-card-value">
               ${ticketsAbertos}
             </div>
+
           </div>
 
+
           <div class="overview-card">
+
             <div class="overview-card-label">
               Execuções
             </div>
@@ -581,9 +841,12 @@ window.renderOverview = async function renderOverview(
             <div class="overview-card-value">
               ${execucoes}
             </div>
+
           </div>
 
+
           <div class="overview-card">
+
             <div class="overview-card-label">
               Vendas
             </div>
@@ -591,9 +854,12 @@ window.renderOverview = async function renderOverview(
             <div class="overview-card-value">
               ${vendas}
             </div>
+
           </div>
 
+
           <div class="overview-card">
+
             <div class="overview-card-label">
               Faturamento
             </div>
@@ -603,9 +869,12 @@ window.renderOverview = async function renderOverview(
                 .toFixed(2)
                 .replace('.', ',')}
             </div>
+
           </div>
 
+
           <div class="overview-card">
+
             <div class="overview-card-label">
               Incidentes
             </div>
@@ -613,11 +882,19 @@ window.renderOverview = async function renderOverview(
             <div class="overview-card-value">
               ${incidentes}
             </div>
+
           </div>
+
 
         </div>
 
+
         <div class="overview-sections">
+
+
+          <!-- ==================================================
+               TICKETS
+               ================================================== -->
 
           <section class="overview-panel">
 
@@ -636,75 +913,112 @@ window.renderOverview = async function renderOverview(
 
             </div>
 
+
             <div class="overview-list">
 
               ${
                 recentTickets.length === 0
+
                   ? `
+
                     <div class="overview-empty">
                       Nenhum ticket encontrado.
                     </div>
+
                   `
-                  : recentTickets.map(ticket => {
 
-                      const priority =
-                        String(
-                          ticket.prioridade ||
-                          'normal'
-                        ).toLowerCase();
+                  : recentTickets
+                      .map(ticket => {
 
-                      const badgeClass =
-                        priority === 'urgente'
-                          ? 'overview-red'
-                          : priority === 'alta'
-                            ? 'overview-yellow'
-                            : 'overview-green';
+                        const priority =
+                          String(
+                            ticket.prioridade ||
+                            'normal'
+                          )
+                            .toLowerCase();
 
-                      return `
-                        <div
-                          class="overview-item"
-                          data-ticket-id="${escape(
-                            ticket.channelId
-                          )}"
-                        >
 
-                          <div class="overview-item-main">
+                        const badgeClass =
+                          priority === 'urgente'
 
-                            <div class="overview-item-title">
-                              ${escape(
-                                ticket.channelName
-                              )}
+                            ? 'overview-red'
+
+                            : priority === 'alta'
+
+                              ? 'overview-yellow'
+
+                              : 'overview-green';
+
+
+                        return `
+
+                          <div
+                            class="overview-item"
+                            data-ticket-id="${escape(
+                              ticket.channelId
+                            )}"
+                          >
+
+                            <div
+                              class="overview-item-main"
+                            >
+
+                              <div
+                                class="overview-item-title"
+                              >
+                                ${escape(
+                                  ticket.channelName
+                                )}
+                              </div>
+
+
+                              <div
+                                class="overview-item-sub"
+                              >
+
+                                ${escape(
+                                  ticket.username
+                                )}
+
+                                ${
+                                  ticket.ultimoContato
+
+                                    ? ` • ${formatDate(
+                                        ticket.ultimoContato
+                                      )}`
+
+                                    : ''
+                                }
+
+                              </div>
+
                             </div>
 
-                            <div class="overview-item-sub">
+
+                            <span
+                              class="overview-badge ${badgeClass}"
+                            >
                               ${escape(
-                                ticket.username
+                                priority
                               )}
-                              ${
-                                ticket.ultimoContato
-                                  ? ` • ${formatDate(
-                                      ticket.ultimoContato
-                                    )}`
-                                  : ''
-                              }
-                            </div>
+                            </span>
 
                           </div>
 
-                          <span
-                            class="overview-badge ${badgeClass}"
-                          >
-                            ${escape(priority)}
-                          </span>
+                        `;
 
-                        </div>
-                      `;
-                    }).join('')
+                      })
+                      .join('')
               }
 
             </div>
 
           </section>
+
+
+          <!-- ==================================================
+               ADMINISTRADORES
+               ================================================== -->
 
           <section class="overview-panel">
 
@@ -716,74 +1030,118 @@ window.renderOverview = async function renderOverview(
 
             </div>
 
+
             <div class="overview-list">
 
               ${
                 admins.length === 0
+
                   ? `
+
                     <div class="overview-empty">
                       Nenhum administrador encontrado.
                     </div>
+
                   `
-                  : admins.map(admin => `
-                    <div class="overview-admin">
 
-                      ${
-                        admin.avatar
-                          ? `
-                            <img
-                              class="overview-avatar"
-                              src="${escape(
-                                admin.avatar
-                              )}"
-                              alt=""
-                            />
-                          `
-                          : `
-                            <div class="overview-avatar-fallback">
-                              ADM
+                  : admins
+                      .map(admin => `
+
+                        <div
+                          class="overview-admin"
+                        >
+
+                          ${
+                            admin.avatar
+
+                              ? `
+
+                                <img
+                                  class="overview-avatar"
+                                  src="${escape(
+                                    admin.avatar
+                                  )}"
+                                  alt=""
+                                />
+
+                              `
+
+                              : `
+
+                                <div
+                                  class="overview-avatar-fallback"
+                                >
+                                  ADM
+                                </div>
+
+                              `
+                          }
+
+
+                          <div
+                            class="overview-admin-main"
+                          >
+
+                            <div
+                              class="overview-admin-name"
+                            >
+                              ${escape(
+                                admin.name
+                              )}
                             </div>
-                          `
-                      }
 
-                      <div class="overview-admin-main">
 
-                        <div class="overview-admin-name">
-                          ${escape(admin.name)}
+                            <div
+                              class="overview-admin-tag"
+                            >
+                              ${escape(
+                                admin.tag ||
+                                admin.role
+                              )}
+                            </div>
+
+                          </div>
+
+
+                          <span
+                            class="overview-badge ${
+                              admin.status ===
+                              'online'
+
+                                ? 'overview-green'
+
+                                : 'overview-red'
+                            }"
+                          >
+
+                            ${
+                              admin.status ===
+                              'online'
+
+                                ? 'Online'
+
+                                : 'Offline'
+                            }
+
+                          </span>
+
                         </div>
 
-                        <div class="overview-admin-tag">
-                          ${escape(
-                            admin.tag ||
-                            admin.role
-                          )}
-                        </div>
-
-                      </div>
-
-                      <span
-                        class="overview-badge ${
-                          admin.status === 'online'
-                            ? 'overview-green'
-                            : 'overview-red'
-                        }"
-                      >
-                        ${
-                          admin.status === 'online'
-                            ? 'Online'
-                            : 'Offline'
-                        }
-                      </span>
-
-                    </div>
-                  `).join('')
+                      `)
+                      .join('')
               }
 
             </div>
 
           </section>
 
+
         </div>
+
+
+        <!-- ====================================================
+             RELEASES
+             ==================================================== -->
 
         <section class="overview-panel">
 
@@ -792,6 +1150,7 @@ window.renderOverview = async function renderOverview(
             <h2 class="overview-panel-title">
               Releases recentes
             </h2>
+
 
             <button
               class="overview-panel-link"
@@ -802,188 +1161,278 @@ window.renderOverview = async function renderOverview(
 
           </div>
 
+
           <div class="overview-list">
 
             ${
               recentReleases.length === 0
+
                 ? `
+
                   <div class="overview-empty">
                     Nenhuma release encontrada.
                   </div>
+
                 `
-                : recentReleases.map(release => {
 
-                    let statusText =
-                      'Ativo';
+                : recentReleases
+                    .map(release => {
 
-                    let statusClass =
-                      'overview-green';
+                      let statusText =
+                        'Ativo';
 
-                    if (
-                      release.expiraEm === 'perm'
-                    ) {
-                      statusText =
-                        'Permanente';
+                      let statusClass =
+                        'overview-green';
 
-                      statusClass =
-                        'overview-purple';
 
-                    } else if (
-                      Number.isFinite(
-                        Number(
-                          release.expiraEm
-                        )
-                      )
-                    ) {
                       if (
-                        Number(
-                          release.expiraEm
-                        ) <= Date.now()
+                        release.expiraEm ===
+                        'perm'
                       ) {
+
                         statusText =
-                          'Expirado';
+                          'Permanente';
 
                         statusClass =
-                          'overview-red';
+                          'overview-purple';
+
                       }
-                    }
 
-                    return `
-                      <div
-                        class="overview-item"
-                        data-release-nick="${escape(
-                          release.nick
-                        )}"
-                      >
 
-                        <div class="overview-item-main">
+                      else if (
+                        Number.isFinite(
+                          Number(
+                            release.expiraEm
+                          )
+                        )
+                      ) {
 
-                          <div class="overview-item-title">
-                            ${escape(
-                              release.nick
-                            )}
+                        if (
+                          Number(
+                            release.expiraEm
+                          ) <=
+                          Date.now()
+                        ) {
+
+                          statusText =
+                            'Expirado';
+
+                          statusClass =
+                            'overview-red';
+
+                        }
+
+                      }
+
+
+                      return `
+
+                        <div
+                          class="overview-item"
+                          data-release-nick="${escape(
+                            release.nick
+                          )}"
+                        >
+
+                          <div
+                            class="overview-item-main"
+                          >
+
+                            <div
+                              class="overview-item-title"
+                            >
+                              ${escape(
+                                release.nick
+                              )}
+                            </div>
+
+
+                            <div
+                              class="overview-item-sub"
+                            >
+
+                              ${
+                                release.dataVenda
+
+                                  ? formatDate(
+                                      release.dataVenda
+                                    )
+
+                                  : 'Data não informada'
+                              }
+
+
+                              ${
+                                release.valor > 0
+
+                                  ? ` • R$ ${release.valor
+                                      .toFixed(2)
+                                      .replace('.', ',')}`
+
+                                  : ''
+                              }
+
+                            </div>
+
                           </div>
 
-                          <div class="overview-item-sub">
-                            ${
-                              release.dataVenda
-                                ? formatDate(
-                                    release.dataVenda
-                                  )
-                                : 'Data não informada'
-                            }
-                            ${
-                              release.valor > 0
-                                ? ` • R$ ${release.valor
-                                    .toFixed(2)
-                                    .replace('.', ',')}`
-                                : ''
-                            }
-                          </div>
+
+                          <span
+                            class="overview-badge ${statusClass}"
+                          >
+                            ${statusText}
+                          </span>
 
                         </div>
 
-                        <span
-                          class="overview-badge ${statusClass}"
-                        >
-                          ${statusText}
-                        </span>
+                      `;
 
-                      </div>
-                    `;
-                  }).join('')
+                    })
+                    .join('')
             }
 
           </div>
 
         </section>
 
+
       </section>
+
     `;
+
+
+    /* ========================================================
+       EVENTOS
+       ======================================================== */
 
     const refresh =
       document.getElementById(
         'overview-refresh'
       );
 
+
     if (refresh) {
+
       refresh.addEventListener(
         'click',
-        () => window.renderOverview(content)
+        () =>
+          window.renderOverview(
+            content
+          )
       );
+
     }
+
 
     const ticketsLink =
       document.getElementById(
         'overview-tickets-link'
       );
 
+
     if (ticketsLink) {
+
       ticketsLink.addEventListener(
         'click',
         () => {
+
           window.location.hash =
             '#/tickets';
+
         }
       );
+
     }
+
 
     const releasesLink =
       document.getElementById(
         'overview-releases-link'
       );
 
+
     if (releasesLink) {
+
       releasesLink.addEventListener(
         'click',
         () => {
+
           window.location.hash =
             '#/releases';
+
         }
       );
+
     }
+
 
     document
       .querySelectorAll(
         '[data-ticket-id]'
       )
-      .forEach(item => {
-        item.addEventListener(
-          'click',
-          () => {
-            const id =
-              item.dataset.ticketId;
+      .forEach(
+        item => {
 
-            if (!id) return;
+          item.addEventListener(
+            'click',
+            () => {
 
-            window.location.hash =
-              `#/tickets?q=${encodeURIComponent(id)}`;
-          }
-        );
-      });
+              const id =
+                item.dataset.ticketId;
+
+
+              if (!id) {
+                return;
+              }
+
+
+              window.location.hash =
+                `#/tickets?q=${encodeURIComponent(
+                  id
+                )}`;
+
+            }
+          );
+
+        }
+      );
+
 
   } catch (error) {
+
+    /* ========================================================
+       ERRO DA API PRINCIPAL
+       ======================================================== */
+
     console.error(
       '[OVERVIEW]',
       error
     );
 
+
     content.innerHTML = `
+
       <style>
+
         .overview-error {
           padding:25px;
           border-radius:12px;
-          border:1px solid rgba(248,113,113,.25);
-          background:rgba(248,113,113,.07);
+          border:1px solid
+            rgba(248,113,113,.25);
+          background:
+            rgba(248,113,113,.07);
           color:#fca5a5;
         }
+
 
         .overview-error strong {
           display:block;
           color:var(--text);
           margin-bottom:6px;
         }
+
       </style>
+
 
       <div class="overview-error">
 
@@ -991,21 +1440,30 @@ window.renderOverview = async function renderOverview(
           Erro ao carregar a Visão Geral.
         </strong>
 
+
         ${escape(
           error?.message ||
           'Erro desconhecido.'
         )}
 
       </div>
+
     `;
 
+
     if (
-      typeof Notifications !== 'undefined' &&
-      typeof Notifications.error === 'function'
+      typeof Notifications !==
+        'undefined' &&
+      typeof Notifications.error ===
+        'function'
     ) {
+
       Notifications.error(
         'Erro ao carregar a Visão Geral.'
       );
+
     }
+
   }
-};
+
+}; 
