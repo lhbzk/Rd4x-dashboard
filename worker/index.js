@@ -4,7 +4,10 @@ export default {
 
     if (request.method !== "GET") {
       return new Response(
-        JSON.stringify({ error: "Método não permitido" }),
+        JSON.stringify({
+          success: false,
+          error: "Método não permitido"
+        }),
         {
           status: 405,
           headers: {
@@ -16,7 +19,10 @@ export default {
 
     const routes = {
       "/api/rd4x/overview": "/api/dashboard/overview",
-      "/api/rd4x/admins": "/api/dashboard/admins"
+      "/api/rd4x/admins": "/api/dashboard/admins",
+      "/api/rd4x/users": "/api/dashboard/users",
+      "/api/rd4x/tickets": "/api/dashboard/tickets",
+      "/api/rd4x/audit": "/api/dashboard/audit"
     };
 
     const targetPath = routes[url.pathname];
@@ -24,6 +30,7 @@ export default {
     if (!targetPath) {
       return new Response(
         JSON.stringify({
+          success: false,
           error: "Endpoint não encontrado",
           path: url.pathname
         }),
@@ -35,48 +42,33 @@ export default {
         }
       );
     }
-export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
 
-    // Só permite GET
-    if (request.method !== "GET") {
-      return new Response(
-        JSON.stringify({ error: "Método não permitido" }),
-        {
-          status: 405,
-          headers: { "Content-Type": "application/json" }
-        }
-      );
-    }
-
-    // Rotas permitidas
-    const routes = {
-      "/api/rd4x/overview": "/api/dashboard/overview",
-      "/api/rd4x/admins": "/api/dashboard/admins"
-    };
-
-    const targetPath = routes[url.pathname];
-
-    if (!targetPath) {
-      return new Response(
-        JSON.stringify({ error: "Endpoint não encontrado" }),
-        {
-          status: 404,
-          headers: { "Content-Type": "application/json" }
-        }
-      );
-    }
-
-    // Verifica as variáveis
-    if (!env.RD4X_API_URL || !env.DASHBOARD_API_KEY) {
+    if (!env.RD4X_API_URL) {
       return new Response(
         JSON.stringify({
-          error: "Configuração do Worker incompleta"
+          success: false,
+          error: "RD4X_API_URL não configurada"
         }),
         {
           status: 500,
-          headers: { "Content-Type": "application/json" }
+          headers: {
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+
+    if (!env.DASHBOARD_API_KEY) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "DASHBOARD_API_KEY não configurada"
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json"
+          }
         }
       );
     }
@@ -87,33 +79,49 @@ export default {
         {
           method: "GET",
           headers: {
-            "Authorization": `Bearer ${env.DASHBOARD_API_KEY}`,
-            "Accept": "application/json"
+            "Authorization":
+              `Bearer ${env.DASHBOARD_API_KEY}`,
+            "Accept":
+              "application/json"
           }
         }
       );
 
-      const body = await response.text();
+      const body =
+        await response.text();
 
-      return new Response(body, {
-        status: response.status,
-        headers: {
-          "Content-Type":
-            response.headers.get("Content-Type") ||
-            "application/json"
+      return new Response(
+        body,
+        {
+          status: response.status,
+          headers: {
+            "Content-Type":
+              response.headers.get(
+                "Content-Type"
+              ) ||
+              "application/json"
+          }
         }
-      });
+      );
 
     } catch (error) {
-      console.error("[WORKER] Erro:", error);
+      console.error(
+        "[WORKER] Erro:",
+        error
+      );
 
       return new Response(
         JSON.stringify({
-          error: "Erro ao conectar com a API RD4X"
+          success: false,
+          error:
+            "Erro ao conectar com a API RD4X"
         }),
         {
           status: 502,
-          headers: { "Content-Type": "application/json" }
+          headers: {
+            "Content-Type":
+              "application/json"
+          }
         }
       );
     }
