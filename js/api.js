@@ -48,10 +48,13 @@ const Api = {
   /* ============ ENDPOINTS OFICIAIS (RD4X V10) ============ */
 
   async getOverview() {
-    if (CONFIG.MOCK_MODE) { await this._delay(); return this._computeMockOverview(); }
-    return this._request('GET', '/api/dashboard/overview');
-  },
+  if (CONFIG.MOCK_MODE) {
+    await this._delay();
+    return this._computeMockOverview();
+  }
 
+  return this._request('GET', '/api/rd4x/overview');
+},
   async getUsers(params = {}) {
     if (CONFIG.MOCK_MODE) { await this._delay(180); return MockData.users.slice(); }
     const qs = new URLSearchParams(params).toString();
