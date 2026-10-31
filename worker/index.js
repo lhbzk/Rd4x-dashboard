@@ -3,19 +3,28 @@ export default {
     const url = new URL(request.url);
 
     const routes = {
+      // ========================================================
+      // API RD4X
+      // ========================================================
+
       "/api/rd4x/overview": "/api/dashboard/overview",
       "/api/rd4x/admins": "/api/dashboard/admins",
       "/api/rd4x/users": "/api/dashboard/users",
       "/api/rd4x/tickets": "/api/dashboard/tickets",
+      "/api/rd4x/releases": "/api/dashboard/releases",
       "/api/rd4x/audit": "/api/dashboard/audit",
       "/api/rd4x/incidents": "/api/dashboard/incidents",
       "/api/rd4x/transcripts": "/api/dashboard/transcripts",
 
-      // Compatibilidade
+      // ========================================================
+      // COMPATIBILIDADE COM O FRONTEND
+      // ========================================================
+
       "/api/dashboard/overview": "/api/dashboard/overview",
       "/api/dashboard/admins": "/api/dashboard/admins",
       "/api/dashboard/users": "/api/dashboard/users",
       "/api/dashboard/tickets": "/api/dashboard/tickets",
+      "/api/dashboard/releases": "/api/dashboard/releases",
       "/api/dashboard/audit": "/api/dashboard/audit",
       "/api/dashboard/incidents": "/api/dashboard/incidents",
       "/api/dashboard/transcripts": "/api/dashboard/transcripts"
@@ -39,7 +48,11 @@ export default {
           {
             status: 405,
             headers: {
-              "Content-Type": "application/json; charset=utf-8"
+              "Content-Type":
+                "application/json; charset=utf-8",
+
+              "Cache-Control":
+                "no-store, no-cache, must-revalidate"
             }
           }
         );
@@ -54,7 +67,8 @@ export default {
           {
             status: 500,
             headers: {
-              "Content-Type": "application/json; charset=utf-8"
+              "Content-Type":
+                "application/json; charset=utf-8"
             }
           }
         );
@@ -69,7 +83,8 @@ export default {
           {
             status: 500,
             headers: {
-              "Content-Type": "application/json; charset=utf-8"
+              "Content-Type":
+                "application/json; charset=utf-8"
             }
           }
         );
@@ -83,20 +98,24 @@ export default {
           `[WORKER] API → ${apiUrl}`
         );
 
-        const response = await fetch(
-          apiUrl,
-          {
-            method: "GET",
+        const response =
+          await fetch(
+            apiUrl,
+            {
+              method: "GET",
 
-            headers: {
-              "Authorization":
-                `Bearer ${env.DASHBOARD_API_KEY}`,
+              headers: {
+                "Authorization":
+                  `Bearer ${env.DASHBOARD_API_KEY}`,
 
-              "Accept":
-                "application/json"
+                "Accept":
+                  "application/json",
+
+                "Cache-Control":
+                  "no-cache"
+              }
             }
-          }
-        );
+          );
 
         const body =
           await response.text();
@@ -114,13 +133,18 @@ export default {
                 "application/json; charset=utf-8",
 
               "Cache-Control":
-                "no-store, no-cache, must-revalidate"
+                "no-store, no-cache, must-revalidate",
+
+              "Pragma":
+                "no-cache",
+
+              "Expires":
+                "0"
             }
           }
         );
 
       } catch (error) {
-
         console.error(
           "[WORKER] Erro API:",
           error
@@ -137,7 +161,10 @@ export default {
 
             headers: {
               "Content-Type":
-                "application/json; charset=utf-8"
+                "application/json; charset=utf-8",
+
+              "Cache-Control":
+                "no-store"
             }
           }
         );
@@ -151,7 +178,60 @@ export default {
      */
 
     if (env.ASSETS) {
-      return env.ASSETS.fetch(request);
+      const response =
+        await env.ASSETS.fetch(request);
+
+      /*
+       * Não altera o conteúdo dos arquivos.
+       * Apenas garante que o HTML/JS/CSS não fique preso
+       * em uma versão antiga no navegador.
+       */
+
+      const contentType =
+        response.headers.get(
+          "Content-Type"
+        ) || "";
+
+      if (
+        contentType.includes("text/html") ||
+        contentType.includes("javascript") ||
+        contentType.includes("text/css")
+      ) {
+        const headers =
+          new Headers(
+            response.headers
+          );
+
+        headers.set(
+          "Cache-Control",
+          "no-store, no-cache, must-revalidate"
+        );
+
+        headers.set(
+          "Pragma",
+          "no-cache"
+        );
+
+        headers.set(
+          "Expires",
+          "0"
+        );
+
+        return new Response(
+          response.body,
+          {
+            status:
+              response.status,
+
+            statusText:
+              response.statusText,
+
+            headers
+          }
+        );
+      }
+
+      return response;
     }
 
     return new Response(
