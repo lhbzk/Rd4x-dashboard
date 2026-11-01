@@ -1,14 +1,11 @@
-/* ============================================================
-   RD4X DASHBOARD V10 — App Router & Shell
-   ============================================================ */
-
 'use strict';
+
 
 const App = {
 
-  /* ==========================================================
+  /* ============================================================
      PÁGINAS
-     ========================================================== */
+     ============================================================ */
 
   pages: {
 
@@ -45,9 +42,9 @@ const App = {
   },
 
 
-  /* ==========================================================
+  /* ============================================================
      ESTADO DE AUTENTICAÇÃO
-     ========================================================== */
+     ============================================================ */
 
   authChecked: false,
 
@@ -58,9 +55,9 @@ const App = {
   checkingAuth: false,
 
 
-  /* ==========================================================
-     INIT
-     ========================================================== */
+  /* ============================================================
+     INICIALIZAÇÃO
+     ============================================================ */
 
   async init() {
 
@@ -72,33 +69,33 @@ const App = {
 
     this.setupKeyboard();
 
-    /*
-     * Antes de carregar qualquer página,
-     * confirma a sessão Discord no Worker.
-     */
+
     const authenticated =
       await this.checkDiscordSession();
 
+
     if (!authenticated) {
+
       return;
+
     }
+
 
     this.route();
 
   },
 
 
-  /* ==========================================================
+  /* ============================================================
      AUTENTICAÇÃO DISCORD
-     ========================================================== */
+     ============================================================ */
 
   async checkDiscordSession() {
 
-    /*
-     * Evita chamadas duplicadas.
-     */
     if (this.checkingAuth) {
+
       return this.authenticated;
+
     }
 
 
@@ -107,50 +104,25 @@ const App = {
 
     try {
 
-      /*
-       * Api.checkAuth() consulta:
-       *
-       * /api/auth/discord/me
-       *
-       * O api.js deve manter:
-       *
-       * credentials: 'include'
-       *
-       * para que o cookie da sessão seja enviado.
-       */
-
       const response =
         await Api.checkAuth();
 
 
-      /*
-       * Formatos aceitos:
-       *
-       * {
-       *   authenticated: true,
-       *   user: {...}
-       * }
-       *
-       * ou
-       *
-       * {
-       *   success: true,
-       *   authenticated: true,
-       *   user: {...}
-       * }
-       */
-
       const authenticated =
         response?.authenticated === true ||
-        response?.success === true &&
-        response?.user;
+        (
+          response?.success === true &&
+          !!response?.user
+        );
 
 
       if (!authenticated) {
 
-        this.authChecked = true;
+        this.authChecked =
+          true;
 
-        this.authenticated = false;
+        this.authenticated =
+          false;
 
         this.currentUser =
           null;
@@ -158,14 +130,17 @@ const App = {
 
         this.showDiscordLogin();
 
+
         return false;
 
       }
 
 
-      this.authChecked = true;
+      this.authChecked =
+        true;
 
-      this.authenticated = true;
+      this.authenticated =
+        true;
 
 
       this.currentUser =
@@ -174,15 +149,17 @@ const App = {
         null;
 
 
-      /*
-       * Disponibiliza o usuário globalmente.
-       */
       window.RD4X_CURRENT_USER =
         this.currentUser;
 
 
-      return true;
+      this.hideDiscordLogin();
 
+
+      this.updateAuthenticatedUser();
+
+
+      return true;
 
     } catch (error) {
 
@@ -192,145 +169,146 @@ const App = {
       );
 
 
-      this.authChecked = true;
+      this.authChecked =
+        true;
 
-      this.authenticated = false;
+      this.authenticated =
+        false;
 
       this.currentUser =
         null;
 
 
-      this.showAuthError(
-        error
-      );
+      this.showAuthError(error);
 
 
       return false;
 
-
     } finally {
 
-      this.checkingAuth = false;
+      this.checkingAuth =
+        false;
 
     }
 
   },
 
 
-  /* ==========================================================
-     TELA DE LOGIN DISCORD
-     ========================================================== */
+  /* ============================================================
+     MOSTRAR LOGIN
+     ============================================================ */
 
   showDiscordLogin() {
 
-    const content =
+    const loginScreen =
       document.getElementById(
-        'content'
+        'discord-login-screen'
       );
-
-
-    if (!content) {
-      return;
-    }
-
-
-    content.innerHTML = `
-
-      <div
-        class="empty-state"
-        style="
-          min-height:60vh;
-          display:flex;
-          flex-direction:column;
-          align-items:center;
-          justify-content:center;
-          text-align:center;
-          gap:12px;
-        "
-      >
-
-        <svg
-          class="icon"
-          style="
-            width:42px;
-            height:42px;
-            color:var(--danger);
-          "
-        >
-          <use href="#i-lock"/>
-        </svg>
-
-
-        <div
-          style="
-            font-size:18px;
-            font-weight:700;
-          "
-        >
-          Sessão Discord não autenticada
-        </div>
-
-
-        <div
-          style="
-            max-width:420px;
-            color:var(--text-muted);
-            line-height:1.5;
-          "
-        >
-          Você precisa estar autenticado
-          com sua conta do Discord para
-          acessar o RD4X Dashboard.
-        </div>
-
-
-        <button
-          id="rd4x-discord-login"
-          type="button"
-          class="btn btn-primary"
-          style="
-            margin-top:8px;
-            display:inline-flex;
-            align-items:center;
-            gap:8px;
-          "
-        >
-
-          <svg
-            class="icon"
-            style="
-              width:18px;
-              height:18px;
-            "
-          >
-            <use href="#i-discord"/>
-          </svg>
-
-          Entrar com Discord
-
-        </button>
-
-      </div>
-
-    `;
 
 
     const loginButton =
       document.getElementById(
-        'rd4x-discord-login'
+        'discord-login-btn'
       );
 
 
-    if (loginButton) {
+    const loginError =
+      document.getElementById(
+        'discord-login-error'
+      );
+
+
+    const loginLoading =
+      document.getElementById(
+        'discord-login-loading'
+      );
+
+
+    if (!loginScreen) {
+
+      console.error(
+        '[RD4X AUTH] Tela de login não encontrada no index.html.'
+      );
+
+      return;
+
+    }
+
+
+    loginScreen.hidden =
+      false;
+
+
+    if (loginError) {
+
+      loginError.textContent =
+        '';
+
+      loginError.hidden =
+        true;
+
+    }
+
+
+    if (loginLoading) {
+
+      loginLoading.hidden =
+        true;
+
+    }
+
+
+    if (
+      loginButton &&
+      loginButton.dataset.authBound !== 'true'
+    ) {
+
+      loginButton.dataset.authBound =
+        'true';
+
 
       loginButton.addEventListener(
         'click',
-        () => {
+        async () => {
 
-          /*
-           * O login é iniciado pelo Worker.
-           */
-          Api.login();
+          loginButton.disabled =
+            true;
+
+          loginButton.textContent =
+            'Redirecionando...';
+
+
+          try {
+
+            await Api.login();
+
+          } catch (error) {
+
+            console.error(
+              '[RD4X AUTH] Erro ao iniciar login:',
+              error
+            );
+
+
+            loginButton.disabled =
+              false;
+
+            loginButton.textContent =
+              'Entrar com Discord';
+
+
+            if (loginError) {
+
+              loginError.textContent =
+                error?.message ||
+                'Não foi possível iniciar o login com Discord.';
+
+              loginError.hidden =
+                false;
+
+            }
+
+          }
 
         }
       );
@@ -340,13 +318,101 @@ const App = {
   },
 
 
-  /* ==========================================================
-     ERRO DE AUTENTICAÇÃO
-     ========================================================== */
+  /* ============================================================
+     ESCONDER LOGIN
+     ============================================================ */
 
-  showAuthError(
-    error
-  ) {
+  hideDiscordLogin() {
+
+    const loginScreen =
+      document.getElementById(
+        'discord-login-screen'
+      );
+
+
+    if (loginScreen) {
+
+      loginScreen.hidden =
+        true;
+
+    }
+
+  },
+
+
+  /* ============================================================
+     ERRO DE AUTENTICAÇÃO
+     ============================================================ */
+
+  showAuthError(error) {
+
+    const loginScreen =
+      document.getElementById(
+        'discord-login-screen'
+      );
+
+
+    const loginError =
+      document.getElementById(
+        'discord-login-error'
+      );
+
+
+    const loginLoading =
+      document.getElementById(
+        'discord-login-loading'
+      );
+
+
+    const loginButton =
+      document.getElementById(
+        'discord-login-btn'
+      );
+
+
+    if (loginScreen) {
+
+      loginScreen.hidden =
+        false;
+
+
+      if (loginLoading) {
+
+        loginLoading.hidden =
+          true;
+
+      }
+
+
+      if (loginButton) {
+
+        loginButton.disabled =
+          false;
+
+        loginButton.textContent =
+          'Entrar com Discord';
+
+      }
+
+
+      if (loginError) {
+
+        loginError.textContent =
+          error?.message ||
+          'Não foi possível verificar sua sessão Discord.';
+
+        loginError.hidden =
+          false;
+
+      }
+
+
+      return;
+
+    }
+
+
+    /* Fallback caso a tela não exista */
 
     const content =
       document.getElementById(
@@ -355,7 +421,9 @@ const App = {
 
 
     if (!content) {
+
       return;
+
     }
 
 
@@ -366,58 +434,24 @@ const App = {
 
     content.innerHTML = `
 
-      <div
-        class="empty-state"
-        style="
-          min-height:60vh;
-          display:flex;
-          flex-direction:column;
-          align-items:center;
-          justify-content:center;
-          text-align:center;
-          gap:12px;
-        "
-      >
+      <div class="empty-state">
 
-        <svg
-          class="icon"
-          style="
-            width:42px;
-            height:42px;
-            color:var(--danger);
-          "
-        >
-          <use href="#i-alert"/>
-        </svg>
-
-
-        <div
-          style="
-            font-size:18px;
-            font-weight:700;
-            color:var(--danger);
-          "
-        >
-          Erro ao verificar sessão
+        <div class="empty-state-icon">
+          !
         </div>
 
+        <h3>
+          Erro de autenticação
+        </h3>
 
-        <div
-          style="
-            max-width:500px;
-            color:var(--text-muted);
-            line-height:1.5;
-          "
-        >
+        <p>
           ${Utils.escapeHtml(message)}
-        </div>
-
+        </p>
 
         <button
           id="rd4x-auth-retry"
           type="button"
           class="btn btn-primary"
-          style="margin-top:8px;"
         >
           Tentar novamente
         </button>
@@ -449,58 +483,188 @@ const App = {
   },
 
 
-  /* ==========================================================
+  /* ============================================================
+     ATUALIZAR USUÁRIO AUTENTICADO
+     ============================================================ */
+
+  updateAuthenticatedUser() {
+
+    const user =
+      this.currentUser;
+
+
+    if (!user) {
+
+      return;
+
+    }
+
+
+    const name =
+      user.globalName ||
+      user.username ||
+      'Administrador';
+
+
+    const role =
+      user.role ||
+      (
+        user.isOwner
+          ? 'Dono'
+          : 'Administrador'
+      );
+
+
+    const avatar =
+      document.getElementById(
+        'topbar-avatar'
+      );
+
+
+    const userName =
+      document.getElementById(
+        'topbar-user-name'
+      );
+
+
+    const userRole =
+      document.getElementById(
+        'topbar-user-role'
+      );
+
+
+    if (userName) {
+
+      userName.textContent =
+        name;
+
+    }
+
+
+    if (userRole) {
+
+      userRole.textContent =
+        role;
+
+    }
+
+
+    if (avatar) {
+
+      if (user.avatar) {
+
+        avatar.innerHTML = `
+
+          <img
+            src="${Utils.escapeHtml(user.avatar)}"
+            alt="${Utils.escapeHtml(name)}"
+          >
+
+        `;
+
+      } else {
+
+        avatar.textContent =
+          String(name)
+            .charAt(0)
+            .toUpperCase();
+
+      }
+
+    }
+
+  },
+
+
+  /* ============================================================
      SIDEBAR
-     ========================================================== */
+     ============================================================ */
 
   setupSidebar() {
 
     const sidebar =
-      document.getElementById('sidebar');
+      document.getElementById(
+        'sidebar'
+      );
+
+
+    const menuToggle =
+      document.getElementById(
+        'menu-toggle'
+      );
+
+
+    const sidebarClose =
+      document.getElementById(
+        'sidebar-close'
+      );
+
 
     const backdrop =
       document.getElementById(
         'sidebar-backdrop'
       );
 
-    const btn =
-      document.getElementById(
-        'menu-toggle'
-      );
+
+    if (
+      !sidebar ||
+      !menuToggle
+    ) {
+
+      return;
+
+    }
 
 
-    const close = () => {
+    const openSidebar =
+      () => {
 
-      if (sidebar) {
-        sidebar.classList.remove('open');
-      }
-
-      if (backdrop) {
-        backdrop.classList.remove('open');
-      }
-
-    };
+        sidebar.classList.add(
+          'open'
+        );
 
 
-    if (btn) {
+        if (backdrop) {
 
-      btn.addEventListener(
-        'click',
-        () => {
-
-          if (sidebar) {
-            sidebar.classList.toggle(
-              'open'
-            );
-          }
-
-          if (backdrop) {
-            backdrop.classList.toggle(
-              'open'
-            );
-          }
+          backdrop.classList.add(
+            'open'
+          );
 
         }
+
+      };
+
+
+    const closeSidebar =
+      () => {
+
+        sidebar.classList.remove(
+          'open'
+        );
+
+
+        if (backdrop) {
+
+          backdrop.classList.remove(
+            'open'
+          );
+
+        }
+
+      };
+
+
+    menuToggle.addEventListener(
+      'click',
+      openSidebar
+    );
+
+
+    if (sidebarClose) {
+
+      sidebarClose.addEventListener(
+        'click',
+        closeSidebar
       );
 
     }
@@ -510,43 +674,43 @@ const App = {
 
       backdrop.addEventListener(
         'click',
-        close
+        closeSidebar
       );
 
     }
 
 
     document
-      .querySelectorAll('.nav-item')
-      .forEach(a => {
+      .querySelectorAll(
+        '.nav-item'
+      )
+      .forEach(
+        item => {
 
-        a.addEventListener(
-          'click',
-          () => {
+          item.addEventListener(
+            'click',
+            () => {
 
-            if (
-              window.innerWidth <= 900
-            ) {
-              close();
+              closeSidebar();
+
             }
+          );
 
-          }
-        );
-
-      });
+        }
+      );
 
   },
 
 
-  /* ==========================================================
+  /* ============================================================
      TOPBAR
-     ========================================================== */
+     ============================================================ */
 
   setupTopbar() {
 
     const searchInput =
       document.getElementById(
-        'global-search'
+        'global-search-input'
       );
 
 
@@ -554,28 +718,26 @@ const App = {
 
       searchInput.addEventListener(
         'keydown',
-        e => {
+        event => {
 
-          if (e.key !== 'Enter') {
-            return;
-          }
+          if (
+            event.key === 'Enter'
+          ) {
+
+            const value =
+              searchInput.value
+                .trim();
 
 
-          const q =
-            searchInput.value.trim();
+            if (!value) {
 
+              return;
 
-          if (q) {
+            }
 
-            window.location.hash =
-              `#/search?q=${encodeURIComponent(q)}`;
-
-            searchInput.value = '';
-
-          } else {
 
             window.location.hash =
-              '#/search';
+              `#/search?q=${encodeURIComponent(value)}`;
 
           }
 
@@ -585,34 +747,25 @@ const App = {
     }
 
 
-    const userBtn =
+    const topbarUser =
       document.getElementById(
-        'user-btn'
+        'topbar-user'
       );
 
 
-    if (userBtn) {
+    if (topbarUser) {
 
-      userBtn.addEventListener(
+      topbarUser.addEventListener(
         'click',
         () => {
 
           if (
-            this.currentUser
+            typeof window.openUserMenu ===
+            'function'
           ) {
 
-            Notifications.info(
-              `Autenticado como ${
-                this.currentUser.globalName ||
-                this.currentUser.username ||
-                'usuário Discord'
-              }.`
-            );
-
-          } else {
-
-            Notifications.info(
-              'Sessão Discord autenticada.'
+            window.openUserMenu(
+              this.currentUser
             );
 
           }
@@ -625,38 +778,71 @@ const App = {
   },
 
 
-  /* ==========================================================
-     KEYBOARD
-     ========================================================== */
+  /* ============================================================
+     TECLADO
+     ============================================================ */
 
   setupKeyboard() {
 
     document.addEventListener(
       'keydown',
-      e => {
+      event => {
 
         if (
-          e.key === '/' &&
-          ![
-            'INPUT',
-            'TEXTAREA',
-            'SELECT'
-          ].includes(
-            document.activeElement.tagName
-          )
+          (event.ctrlKey ||
+            event.metaKey) &&
+          event.key.toLowerCase() === 'k'
         ) {
 
-          e.preventDefault();
+          event.preventDefault();
 
 
           const input =
             document.getElementById(
-              'global-search'
+              'global-search-input'
             );
 
 
           if (input) {
+
             input.focus();
+
+          }
+
+        }
+
+
+        if (
+          event.key === 'Escape'
+        ) {
+
+          const sidebar =
+            document.getElementById(
+              'sidebar'
+            );
+
+
+          const backdrop =
+            document.getElementById(
+              'sidebar-backdrop'
+            );
+
+
+          if (sidebar) {
+
+            sidebar.classList.remove(
+              'open'
+            );
+
+          }
+
+
+          if (backdrop) {
+
+            backdrop.classList.remove(
+              'open'
+            );
+
           }
 
         }
@@ -667,9 +853,9 @@ const App = {
   },
 
 
-  /* ==========================================================
+  /* ============================================================
      ROUTER
-     ========================================================== */
+     ============================================================ */
 
   setupRouter() {
 
@@ -677,15 +863,12 @@ const App = {
       'hashchange',
       () => {
 
-        /*
-         * Nunca deixa o router carregar
-         * páginas protegidas antes da
-         * autenticação.
-         */
         if (
           !this.authenticated
         ) {
+
           return;
+
         }
 
 
@@ -697,71 +880,58 @@ const App = {
   },
 
 
-  /* ==========================================================
-     HASH PARSER
-     ========================================================== */
+  /* ============================================================
+     PARSER DA HASH
+     ============================================================ */
 
   parseHash() {
 
-    const raw =
-      window.location.hash
-        .replace(/^#\/?/, '');
+    const hash =
+      window.location.hash ||
+      '#/overview';
 
 
-    const [
-      pathPart,
-      queryPart
-    ] =
-      raw.split('?');
+    const clean =
+      hash.replace(
+        /^#\/?/,
+        ''
+      );
 
 
-    const page =
-      (
-        pathPart ||
-        'overview'
-      )
-        .split('/')[0] ||
+    const parts =
+      clean.split('?');
+
+
+    const route =
+      parts[0] ||
       'overview';
 
 
-    const params = {};
-
-
-    if (queryPart) {
-
+    const query =
       new URLSearchParams(
-        queryPart
-      ).forEach(
-        (value, key) => {
-
-          params[key] = value;
-
-        }
+        parts[1] || ''
       );
-
-    }
 
 
     return {
-      page,
-      params
+      route,
+      query
     };
 
   },
 
 
-  /* ==========================================================
-     ROUTE
-     ========================================================== */
+  /* ============================================================
+     ROTA
+     ============================================================ */
 
-  async route() {
+  route() {
 
-    /*
-     * Proteção adicional.
-     */
     if (
       !this.authenticated
     ) {
+
+      this.showDiscordLogin();
 
       return;
 
@@ -769,125 +939,78 @@ const App = {
 
 
     const {
-      page,
-      params
+      route
     } =
       this.parseHash();
 
 
-    const content =
-      document.getElementById(
-        'content'
+    const page =
+      this.pages[route] ||
+      this.pages.overview;
+
+
+    this.updateNavigation(
+      route
+    );
+
+
+    this.updatePageTitle(
+      route
+    );
+
+
+    if (
+      typeof page !==
+      'function'
+    ) {
+
+      console.error(
+        `[RD4X] Página "${route}" não encontrada.`
       );
 
-
-    if (!content) {
       return;
+
     }
 
 
-    const known = [
-
-      'overview',
-
-      'search',
-
-      'users',
-
-      'tickets',
-
-      'releases',
-
-      'incidents',
-
-      'audit',
-
-      'stats',
-
-      'transcripts',
-
-      'settings'
-
-    ];
-
-
-    const currentPage =
-      known.includes(page)
-        ? page
-        : 'overview';
-
-
-    /* ----------------------------------------------------------
-       ATUALIZA MENU ATIVO
-       ---------------------------------------------------------- */
-
-    document
-      .querySelectorAll('.nav-item')
-      .forEach(a => {
-
-        a.classList.toggle(
-          'active',
-          a.dataset.route ===
-            currentPage
-        );
-
-      });
-
-
-    /* ----------------------------------------------------------
-       RESET DO SCROLL
-       ---------------------------------------------------------- */
-
-    content.scrollTop = 0;
-
-
-    /* ----------------------------------------------------------
-       CARREGA PÁGINA
-       ---------------------------------------------------------- */
-
     try {
 
-      const fn =
-        this.pages[currentPage];
+      page();
+
+    } catch (error) {
+
+      console.error(
+        `[RD4X] Erro ao renderizar página "${route}":`,
+        error
+      );
 
 
-      if (typeof fn === 'function') {
-
-        await fn(
-          content,
-          params
+      const content =
+        document.getElementById(
+          'content'
         );
 
-      } else {
+
+      if (content) {
 
         content.innerHTML = `
 
           <div class="empty-state">
 
-            <svg class="icon">
-              <use href="#i-alert"/>
-            </svg>
-
-            <div
-              style="
-                font-size:15px;
-                font-weight:600;
-                color:var(--danger);
-                margin-bottom:4px
-              "
-            >
-              Página não encontrada
+            <div class="empty-state-icon">
+              !
             </div>
 
-            <div>
-              O módulo
-              <strong>
-                ${Utils.escapeHtml(
-                  currentPage
-                )}
-              </strong>
-              ainda não foi carregado.
-            </div>
+            <h3>
+              Erro ao carregar página
+            </h3>
+
+            <p>
+              ${Utils.escapeHtml(
+                error?.message ||
+                'Erro desconhecido.'
+              )}
+            </p>
 
           </div>
 
@@ -895,60 +1018,56 @@ const App = {
 
       }
 
-    } catch (err) {
-
-      console.error(err);
-
-
-      content.innerHTML = `
-
-        <div class="empty-state">
-
-          <svg class="icon">
-            <use href="#i-alert"/>
-          </svg>
-
-          <div
-            style="
-              font-size:15px;
-              font-weight:600;
-              color:var(--danger);
-              margin-bottom:4px
-            "
-          >
-            Erro ao carregar página
-          </div>
-
-          <div>
-            ${Utils.escapeHtml(
-              err.message ||
-              'Erro desconhecido'
-            )}
-          </div>
-
-        </div>
-
-      `;
-
-
-      Notifications.error(
-        'Erro ao conectar. Tentando novamente.'
-      );
-
     }
 
+  },
 
-    /* ----------------------------------------------------------
-       TÍTULO
-       ---------------------------------------------------------- */
+
+  /* ============================================================
+     NAVEGAÇÃO
+     ============================================================ */
+
+  updateNavigation(
+    currentRoute
+  ) {
+
+    document
+      .querySelectorAll(
+        '.nav-item'
+      )
+      .forEach(
+        item => {
+
+          const route =
+            item.dataset.route;
+
+
+          item.classList.toggle(
+            'active',
+            route === currentRoute
+          );
+
+        }
+      );
+
+  },
+
+
+  /* ============================================================
+     TÍTULO DA PÁGINA
+     ============================================================ */
+
+  updatePageTitle(
+    route
+  ) {
 
     const titles = {
 
       overview:
-        'Visão Geral',
+        'Visão geral',
 
       search:
-        'Busca Global',
+        'Pesquisa',
 
       users:
         'Usuários',
@@ -959,29 +1078,47 @@ const App = {
       releases:
         'Releases',
 
-      incidents:
-        'Incidentes',
-
       audit:
         'Auditoria',
+
+      incidents:
+        'Incidentes',
 
       stats:
         'Estatísticas',
 
       transcripts:
-        'Transcripts',
+        'Transcrições',
 
       settings:
-        'Configuração'
+        'Configurações'
 
     };
 
 
-    document.title =
-      `RD4X Dashboard V10 · ${
-        titles[currentPage] ||
-        'Dashboard'
-      }`;
+    const pageTitle =
+      document.getElementById(
+        'page-title'
+      );
+
+
+    if (pageTitle) {
+
+      pageTitle.textContent =
+        titles[route] ||
+        'Visão geral';
+
+    }
+
+    if (
+      document.title !==
+      `RD4X Dashboard V10`
+    ) {
+
+      document.title =
+        `RD4X Dashboard V10`;
+
+    }
 
   }
 
@@ -989,14 +1126,57 @@ const App = {
 
 
 /* ============================================================
-   DOM READY
+   INICIALIZAÇÃO
    ============================================================ */
 
 document.addEventListener(
   'DOMContentLoaded',
   async () => {
 
-    await App.init();
+    try {
+
+      await App.init();
+
+    } catch (error) {
+
+      console.error(
+        '[RD4X APP] Erro fatal ao inicializar o dashboard:',
+        error
+      );
+
+
+      const loginScreen =
+        document.getElementById(
+          'discord-login-screen'
+        );
+
+
+      const loginError =
+        document.getElementById(
+          'discord-login-error'
+        );
+
+
+      if (loginScreen) {
+
+        loginScreen.hidden =
+          false;
+
+      }
+
+
+      if (loginError) {
+
+        loginError.textContent =
+          error?.message ||
+          'Erro ao inicializar o dashboard.';
+
+        loginError.hidden =
+          false;
+
+      }
+
+    }
 
   }
 );
