@@ -663,6 +663,156 @@ export default {
     }
 
     // =========================================================
+    // VALIDAÇÃO DE KEY RD4X
+    // =========================================================
+
+    if (
+      url.pathname ===
+        "/api/v2/keys/validate" &&
+      request.method === "POST"
+    ) {
+      const session =
+        await getSession(
+          request
+        );
+
+      if (!session) {
+        return json(
+          {
+            success: false,
+            valid: false,
+            reason:
+              "sessao_nao_autenticada"
+          },
+          401
+        );
+      }
+
+      if (
+        !API_URL ||
+        !API_KEY
+      ) {
+        return json(
+          {
+            success: false,
+            valid: false,
+            reason:
+              "api_nao_configurada"
+          },
+          500
+        );
+      }
+
+      try {
+        const body =
+          await request.json();
+
+        const key =
+          String(
+            body?.key || ""
+          ).trim();
+
+        const hwid =
+          body?.hwid
+            ? String(
+                body.hwid
+              ).trim()
+            : null;
+
+        if (!key) {
+          return json({
+            success: true,
+            valid: false,
+            reason:
+              "key_ausente"
+          });
+        }
+
+        const response =
+          await fetch(
+            `${API_URL}/api/v2/keys/validate`,
+            {
+              method:
+                "POST",
+
+              headers: {
+                "Authorization":
+                  `Bearer ${API_KEY}`,
+
+                "Content-Type":
+                  "application/json",
+
+                "Accept":
+                  "application/json",
+
+                "Cache-Control":
+                  "no-cache"
+              },
+
+              body:
+                JSON.stringify({
+                  key,
+
+                  discordId:
+                    String(
+                      session.sub
+                    ),
+
+                  hwid
+                })
+            }
+          );
+
+        const text =
+          await response.text();
+
+        let data;
+
+        try {
+          data =
+            JSON.parse(
+              text
+            );
+        } catch {
+          data = null;
+        }
+
+        if (!data) {
+          return json(
+            {
+              success: false,
+              valid: false,
+              reason:
+                "resposta_api_invalida"
+            },
+            502
+          );
+        }
+
+        return json(
+          data,
+          response.status
+        );
+
+      } catch (error) {
+        console.error(
+          "[WORKER KEY VALIDATE]",
+          error
+        );
+
+        return json(
+          {
+            success: false,
+            valid: false,
+            reason:
+              "erro_api"
+          },
+          502
+        );
+      }
+    }
+
+    // =========================================================
     // ROTAS DA API RD4X
     // =========================================================
 
