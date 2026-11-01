@@ -1501,55 +1501,117 @@ const Api = {
   },
 
 
-/* ==========================================================
-   🔐 AUTENTICAÇÃO
-   ========================================================== */
+  /* ==========================================================
+     🔐 AUTENTICAÇÃO
+     ========================================================== */
 
-async login() {
+  async login() {
 
-  window.location.href =
-    this._buildUrl(
-      '/api/auth/discord/login'
+    window.location.href =
+      this._buildUrl(
+        '/api/auth/discord/login'
+      );
+
+  },
+
+
+  async logout() {
+
+    return this._post(
+      '/api/auth/discord/logout',
+      {}
     );
 
-},
+  },
 
 
-async logout() {
+  async getCurrentUser() {
 
-  return this._post(
-    '/api/auth/discord/logout',
-    {}
-  );
+    return this._get(
+      '/api/auth/discord/me'
+    );
 
-},
-
-
-async getCurrentUser() {
-
-  return this._get(
-    '/api/auth/discord/me'
-  );
-
-},
+  },
 
 
-async checkAuth() {
+  async checkAuth() {
 
-  return this._get(
-    '/api/auth/discord/me'
-  );
+    return this._get(
+      '/api/auth/discord/me'
+    );
 
-},
+  },
 
 
-async refreshAuth() {
+  async refreshAuth() {
 
-  return this._get(
-    '/api/auth/discord/me'
-  );
+    return this._get(
+      '/api/auth/discord/me'
+    );
 
-},
+  },
+
+
+  /* ==========================================================
+     🔑 VALIDAÇÃO DA KEY RD4X
+     ========================================================== */
+
+  async validateKey(
+    key,
+    hwid = null
+  ) {
+
+    const cleanKey =
+      String(
+        key || ''
+      ).trim();
+
+
+    if (!cleanKey) {
+
+      return {
+
+        success: false,
+
+        valid: false,
+
+        reason:
+          'key_ausente'
+
+      };
+
+    }
+
+
+    const payload = {
+
+      key:
+        cleanKey
+
+    };
+
+
+    if (
+      hwid !== undefined &&
+      hwid !== null &&
+      String(hwid).trim()
+    ) {
+
+      payload.hwid =
+        String(
+          hwid
+        ).trim();
+
+    }
+
+
+    return this._post(
+      '/api/v2/keys/validate',
+      payload
+    );
+
+  },
+
 
   /* ==========================================================
      🩺 SISTEMA / HEALTH
