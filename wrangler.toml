@@ -1,6 +1,14 @@
 name = "rd4x-dashboard"
-main = "worker/index.js"
-compatibility_date = "2026-10-23"
+main = "worker-index.js"
+compatibility_date = "2026-10-31"
 
-[assets]
-directory = "."
+[vars]
+DISCORD_CLIENT_ID = "1549552943001378962"
+DISCORD_OAUTH_REDIRECT_URI = "https://rd4x-dashboard.ronaldoo-sev7n.workers.dev/api/auth/discord/callback"
+RD4X_API_URL = "https://aidhmfv7af.apps.bot-hosting.cloud"
+
+[secrets]
+required = [
+  "DISCORD_CLIENT_SECRET",
+  "DASHBOARD_API_KEY"
+]
