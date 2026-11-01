@@ -31,6 +31,11 @@
 <link
   rel="preconnect"
   href="https://fonts.gstatic.com"
+>
+
+<link
+  rel="preconnect"
+  href="https://fonts.googleapis.com"
   crossorigin
 >
 
@@ -49,9 +54,280 @@
   href="css/responsive.css?v=10.1.0"
 >
 
+<!-- ============================================================
+     AUTH UI
+     ============================================================ -->
+
+<style>
+
+  /* ============================================================
+     TELA DE LOGIN
+     ============================================================ */
+
+  .discord-login-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 24px;
+
+    background:
+      radial-gradient(
+        circle at 50% 0%,
+        rgba(88, 101, 242, 0.16),
+        transparent 42%
+      ),
+      #0b0e14;
+
+    color: #ffffff;
+
+    font-family:
+      Inter,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif;
+  }
+
+
+  .discord-login-screen[hidden] {
+    display: none !important;
+  }
+
+
+  .discord-login-card {
+    width: 100%;
+    max-width: 430px;
+
+    padding: 42px 34px;
+
+    border: 1px solid
+      rgba(255, 255, 255, 0.08);
+
+    border-radius: 24px;
+
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.055),
+        rgba(255, 255, 255, 0.025)
+      );
+
+    box-shadow:
+      0 30px 90px
+      rgba(0, 0, 0, 0.55);
+
+    text-align: center;
+
+    backdrop-filter: blur(18px);
+  }
+
+
+  .discord-login-logo {
+    margin-bottom: 26px;
+
+    font-size: 42px;
+    line-height: 1;
+
+    font-weight: 800;
+    letter-spacing: -2px;
+
+    color: #ffffff;
+  }
+
+
+  .discord-login-logo span {
+    color: #5865f2;
+  }
+
+
+  .discord-login-card h1 {
+    margin: 0 0 12px;
+
+    font-size: 25px;
+    line-height: 1.2;
+
+    font-weight: 800;
+
+    color: #ffffff;
+  }
+
+
+  .discord-login-card p {
+    margin: 0 auto 28px;
+
+    max-width: 330px;
+
+    font-size: 14px;
+    line-height: 1.65;
+
+    color: rgba(255, 255, 255, 0.58);
+  }
+
+
+  .discord-login-btn {
+    width: 100%;
+
+    min-height: 52px;
+
+    padding: 0 22px;
+
+    border: 0;
+    border-radius: 12px;
+
+    background: #5865f2;
+
+    color: #ffffff;
+
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+
+    cursor: pointer;
+
+    transition:
+      transform 0.18s ease,
+      background 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+
+  .discord-login-btn:hover {
+    background: #4752c4;
+
+    transform: translateY(-1px);
+
+    box-shadow:
+      0 12px 30px
+      rgba(88, 101, 242, 0.28);
+  }
+
+
+  .discord-login-btn:active {
+    transform: translateY(0);
+  }
+
+
+  .discord-login-btn:disabled {
+    opacity: 0.65;
+    cursor: wait;
+    transform: none;
+  }
+
+
+  .discord-login-error {
+    margin-top: 18px;
+
+    padding: 12px 14px;
+
+    border: 1px solid
+      rgba(255, 75, 75, 0.25);
+
+    border-radius: 10px;
+
+    background:
+      rgba(255, 75, 75, 0.08);
+
+    color: #ff8f8f;
+
+    font-size: 13px;
+    line-height: 1.5;
+
+    text-align: left;
+  }
+
+
+  .discord-login-loading {
+    margin-top: 18px;
+
+    color:
+      rgba(255, 255, 255, 0.45);
+
+    font-size: 12px;
+  }
+
+
+  @media (max-width: 480px) {
+
+    .discord-login-screen {
+      padding: 16px;
+    }
+
+    .discord-login-card {
+      padding: 34px 22px;
+      border-radius: 20px;
+    }
+
+    .discord-login-logo {
+      font-size: 36px;
+    }
+
+    .discord-login-card h1 {
+      font-size: 22px;
+    }
+
+  }
+
+</style>
+
 </head>
 
 <body>
+
+<!-- ============================================================
+     AUTENTICAÇÃO DISCORD
+     ============================================================ -->
+
+<div
+  id="discord-login-screen"
+  class="discord-login-screen"
+>
+
+  <div class="discord-login-card">
+
+    <div class="discord-login-logo">
+      RD<span>4</span>X
+    </div>
+
+    <h1>
+      RD4X Dashboard
+    </h1>
+
+    <p>
+      Entre com sua conta do Discord
+      para acessar o painel administrativo.
+    </p>
+
+    <button
+      id="discord-login-btn"
+      class="discord-login-btn"
+      type="button"
+    >
+      Entrar com Discord
+    </button>
+
+    <div
+      id="discord-login-error"
+      class="discord-login-error"
+      hidden
+    ></div>
+
+    <div
+      id="discord-login-loading"
+      class="discord-login-loading"
+      hidden
+    >
+      Verificando sessão...
+    </div>
+
+  </div>
+
+</div>
+
 
 <!-- ============================================================
      SVG ICONS
@@ -879,6 +1155,208 @@
 
 <script src="js/api.js?v=10.1.1"></script>
 
+
+<!-- ============================================================
+     CONTROLE VISUAL DA AUTENTICAÇÃO
+     ============================================================ -->
+
+<script>
+
+(() => {
+
+  const loginScreen =
+    document.getElementById(
+      'discord-login-screen'
+    );
+
+  const loginButton =
+    document.getElementById(
+      'discord-login-btn'
+    );
+
+  const loginError =
+    document.getElementById(
+      'discord-login-error'
+    );
+
+  const loginLoading =
+    document.getElementById(
+      'discord-login-loading'
+    );
+
+
+  function showLogin() {
+
+    if (loginScreen) {
+      loginScreen.hidden = false;
+    }
+
+  }
+
+
+  function hideLogin() {
+
+    if (loginScreen) {
+      loginScreen.hidden = true;
+    }
+
+  }
+
+
+  function showError(message) {
+
+    if (!loginError) {
+      return;
+    }
+
+    loginError.textContent =
+      message ||
+      'Não foi possível verificar sua sessão.';
+
+    loginError.hidden = false;
+
+  }
+
+
+  function clearError() {
+
+    if (!loginError) {
+      return;
+    }
+
+    loginError.textContent = '';
+    loginError.hidden = true;
+
+  }
+
+
+  async function verificarSessao() {
+
+    showLogin();
+    clearError();
+
+    if (loginLoading) {
+      loginLoading.hidden = false;
+    }
+
+    try {
+
+      const response =
+        await fetch(
+          'https://rd4x-dashboard.ronaldoo-sev7n.workers.dev/api/auth/discord/me',
+          {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Accept':
+                'application/json'
+            }
+          }
+        );
+
+
+      let data = null;
+
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
+
+
+      const autenticado =
+        response.ok &&
+        (
+          data?.authenticated === true ||
+          (
+            data?.success === true &&
+            !!data?.user
+          )
+        );
+
+
+      if (autenticado) {
+
+        hideLogin();
+
+        window.RD4X_CURRENT_USER =
+          data?.user ||
+          data?.data ||
+          null;
+
+        return true;
+
+      }
+
+
+      showLogin();
+
+      return false;
+
+    } catch (error) {
+
+      console.error(
+        '[AUTH UI] Erro ao verificar sessão:',
+        error
+      );
+
+      showLogin();
+
+      showError(
+        'Não foi possível verificar a sessão. Tente novamente.'
+      );
+
+      return false;
+
+    } finally {
+
+      if (loginLoading) {
+        loginLoading.hidden = true;
+      }
+
+    }
+
+  }
+
+
+  if (loginButton) {
+
+    loginButton.addEventListener(
+      'click',
+      () => {
+
+        clearError();
+
+        loginButton.disabled = true;
+
+        loginButton.textContent =
+          'Redirecionando...';
+
+        window.location.href =
+          'https://rd4x-dashboard.ronaldoo-sev7n.workers.dev/api/auth/discord/login';
+
+      }
+    );
+
+  }
+
+
+  window.RD4X_AUTH_UI = {
+    showLogin,
+    hideLogin,
+    showError,
+    clearError,
+    verificarSessao
+  };
+
+
+  verificarSessao();
+
+})();
+
+</script>
+
+
 <script src="js/notifications.js?v=10.1.0"></script>
 
 <script src="js/modals.js?v=10.1.0"></script>
@@ -909,4 +1387,5 @@
 <script src="js/app.js?v=10.1.1"></script>
 
 </body>
-    </html>
+
+      </html>
