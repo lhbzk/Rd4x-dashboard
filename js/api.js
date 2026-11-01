@@ -1528,22 +1528,21 @@ const Api = {
 
 
   async getCurrentUser() {
+async getCurrentUser() {
 
-    return this._get(
-      '/api/auth/me'
-    );
+  return this._get(
+    '/api/auth/discord/me'
+  );
 
-  },
+},
 
+async checkAuth() {
 
-  async checkAuth() {
+  return this._get(
+    '/api/auth/discord/me'
+  );
 
-    return this._get(
-      '/api/auth/check'
-    );
-
-  },
-
+},
 
   async refreshAuth() {
 
