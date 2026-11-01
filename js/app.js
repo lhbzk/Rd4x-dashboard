@@ -56,6 +56,15 @@ const App = {
 
 
   /* ============================================================
+     ESTADO DA KEY
+     ============================================================ */
+
+  keyValidated: false,
+
+  validatingKey: false,
+
+
+  /* ============================================================
      INICIALIZAÇÃO
      ============================================================ */
 
@@ -69,6 +78,8 @@ const App = {
 
     this.setupKeyboard();
 
+    this.setupKeyScreen();
+
 
     const authenticated =
       await this.checkDiscordSession();
@@ -81,7 +92,15 @@ const App = {
     }
 
 
-    this.route();
+    /*
+     * Discord autenticado.
+     *
+     * IMPORTANTE:
+     * A autenticação Discord não libera o Dashboard.
+     * Primeiro mostramos a tela da Key.
+     */
+
+    this.showKeyScreen();
 
   },
 
@@ -127,6 +146,11 @@ const App = {
         this.currentUser =
           null;
 
+        this.keyValidated =
+          false;
+
+
+        this.hideKeyScreen();
 
         this.showDiscordLogin();
 
@@ -178,6 +202,9 @@ const App = {
       this.currentUser =
         null;
 
+      this.keyValidated =
+        false;
+
 
       this.showAuthError(error);
 
@@ -195,7 +222,7 @@ const App = {
 
 
   /* ============================================================
-     MOSTRAR LOGIN
+     MOSTRAR LOGIN DISCORD
      ============================================================ */
 
   showDiscordLogin() {
@@ -203,6 +230,12 @@ const App = {
     const loginScreen =
       document.getElementById(
         'discord-login-screen'
+      );
+
+
+    const keyScreen =
+      document.getElementById(
+        'rd4x-key-screen'
       );
 
 
@@ -222,6 +255,14 @@ const App = {
       document.getElementById(
         'discord-login-loading'
       );
+
+
+    if (keyScreen) {
+
+      keyScreen.hidden =
+        true;
+
+    }
 
 
     if (!loginScreen) {
@@ -319,7 +360,7 @@ const App = {
 
 
   /* ============================================================
-     ESCONDER LOGIN
+     ESCONDER LOGIN DISCORD
      ============================================================ */
 
   hideDiscordLogin() {
@@ -341,10 +382,544 @@ const App = {
 
 
   /* ============================================================
+     TELA DA KEY
+     ============================================================ */
+
+  setupKeyScreen() {
+
+    const form =
+      document.getElementById(
+        'rd4x-key-form'
+      );
+
+
+    const input =
+      document.getElementById(
+        'rd4x-key-input'
+      );
+
+
+    if (!form || !input) {
+
+      console.error(
+        '[RD4X KEY] Elementos da tela de Key não encontrados.'
+      );
+
+      return;
+
+    }
+
+
+    if (
+      form.dataset.keyBound === 'true'
+    ) {
+
+      return;
+
+    }
+
+
+    form.dataset.keyBound =
+      'true';
+
+
+    form.addEventListener(
+      'submit',
+      async event => {
+
+        event.preventDefault();
+
+
+        if (
+          this.validatingKey
+        ) {
+
+          return;
+
+        }
+
+
+        const key =
+          input.value.trim();
+
+
+        if (!key) {
+
+          this.showKeyError(
+            'Digite sua RD4X Key.'
+          );
+
+          input.focus();
+
+          return;
+
+        }
+
+
+        await this.validateKey(
+          key
+        );
+
+      }
+    );
+
+
+    input.addEventListener(
+      'keydown',
+      event => {
+
+        if (
+          event.key === 'Enter'
+        ) {
+
+          event.preventDefault();
+
+          form.requestSubmit();
+
+        }
+
+      }
+    );
+
+  },
+
+
+  /* ============================================================
+     MOSTRAR TELA DA KEY
+     ============================================================ */
+
+  showKeyScreen() {
+
+    const keyScreen =
+      document.getElementById(
+        'rd4x-key-screen'
+      );
+
+
+    const loginScreen =
+      document.getElementById(
+        'discord-login-screen'
+      );
+
+
+    const input =
+      document.getElementById(
+        'rd4x-key-input'
+      );
+
+
+    const userLabel =
+      document.getElementById(
+        'rd4x-key-user'
+      );
+
+
+    if (loginScreen) {
+
+      loginScreen.hidden =
+        true;
+
+    }
+
+
+    if (!keyScreen) {
+
+      console.error(
+        '[RD4X KEY] Tela de Key não encontrada.'
+      );
+
+      return;
+
+    }
+
+
+    keyScreen.hidden =
+      false;
+
+
+    this.showKeyLoading(
+      false
+    );
+
+
+    this.clearKeyError();
+
+
+    if (userLabel) {
+
+      const user =
+        this.currentUser;
+
+
+      const name =
+        user?.globalName ||
+        user?.username ||
+        'Usuário Discord';
+
+
+      userLabel.textContent =
+        `Discord: ${name}`;
+
+    }
+
+
+    if (input) {
+
+      input.value =
+        '';
+
+      setTimeout(
+        () => {
+
+          if (
+            !this.keyValidated &&
+            !keyScreen.hidden
+          ) {
+
+            input.focus();
+
+          }
+
+        },
+        50
+      );
+
+    }
+
+  },
+
+
+  /* ============================================================
+     ESCONDER TELA DA KEY
+     ============================================================ */
+
+  hideKeyScreen() {
+
+    const keyScreen =
+      document.getElementById(
+        'rd4x-key-screen'
+      );
+
+
+    if (keyScreen) {
+
+      keyScreen.hidden =
+        true;
+
+    }
+
+  },
+
+
+  /* ============================================================
+     VALIDAR KEY
+     ============================================================ */
+
+  async validateKey(
+    key
+  ) {
+
+    if (
+      this.validatingKey
+    ) {
+
+      return false;
+
+    }
+
+
+    if (
+      !this.authenticated
+    ) {
+
+      this.showKeyError(
+        'Sua sessão Discord não está autenticada.'
+      );
+
+      this.showDiscordLogin();
+
+      return false;
+
+    }
+
+
+    this.validatingKey =
+      true;
+
+
+    this.showKeyError(
+      ''
+    );
+
+
+    this.showKeyLoading(
+      true
+    );
+
+
+    const submit =
+      document.getElementById(
+        'rd4x-key-submit'
+      );
+
+
+    const input =
+      document.getElementById(
+        'rd4x-key-input'
+      );
+
+
+    if (submit) {
+
+      submit.disabled =
+        true;
+
+      submit.textContent =
+        'Validando...';
+
+    }
+
+
+    try {
+
+      if (
+        typeof Api.validateKey !==
+        'function'
+      ) {
+
+        throw new Error(
+          'A função de validação da Key ainda não está disponível no api.js.'
+        );
+
+      }
+
+
+      const response =
+        await Api.validateKey(
+          key
+        );
+
+
+      /*
+       * Aceitamos os formatos mais comuns
+       * retornados pelo endpoint.
+       */
+
+      const valid =
+        response?.valid === true ||
+        response?.success === true &&
+        (
+          response?.valid !== false
+        ) ||
+        response?.data?.valid === true ||
+        response?.data?.success === true;
+
+
+      if (!valid) {
+
+        const message =
+          response?.message ||
+          response?.error ||
+          response?.data?.message ||
+          'Key inválida ou não autorizada.';
+
+
+        throw new Error(
+          message
+        );
+
+      }
+
+
+      /*
+       * A Key foi validada somente nesta sessão
+       * desta página.
+       *
+       * Não salvamos a Key em localStorage,
+       * sessionStorage ou cookie.
+       */
+
+      this.keyValidated =
+        true;
+
+
+      window.RD4X_KEY_VALIDATED =
+        true;
+
+
+      this.showKeyLoading(
+        false
+      );
+
+
+      this.hideKeyScreen();
+
+
+      /*
+       * Agora sim o Dashboard pode ser renderizado.
+       */
+
+      this.route();
+
+
+      return true;
+
+    } catch (error) {
+
+      console.error(
+        '[RD4X KEY] Erro ao validar Key:',
+        error
+      );
+
+
+      this.keyValidated =
+        false;
+
+
+      window.RD4X_KEY_VALIDATED =
+        false;
+
+
+      this.showKeyLoading(
+        false
+      );
+
+
+      this.showKeyError(
+        this.getKeyErrorMessage(
+          error
+        )
+      );
+
+
+      if (input) {
+
+        input.focus();
+
+        input.select();
+
+      }
+
+
+      return false;
+
+    } finally {
+
+      this.validatingKey =
+        false;
+
+
+      if (submit) {
+
+        submit.disabled =
+          false;
+
+        submit.textContent =
+          'Continuar';
+
+      }
+
+    }
+
+  },
+
+
+  /* ============================================================
+     MENSAGEM DE ERRO DA KEY
+     ============================================================ */
+
+  getKeyErrorMessage(
+    error
+  ) {
+
+    const message =
+      String(
+        error?.message ||
+        ''
+      ).trim();
+
+
+    if (!message) {
+
+      return 'Não foi possível validar a Key. Tente novamente.';
+
+    }
+
+
+    return message;
+
+  },
+
+
+  /* ============================================================
+     ERRO DA KEY
+     ============================================================ */
+
+  showKeyError(
+    message
+  ) {
+
+    const errorBox =
+      document.getElementById(
+        'rd4x-key-error'
+      );
+
+
+    if (!errorBox) {
+
+      return;
+
+    }
+
+
+    const text =
+      String(
+        message ||
+        ''
+      ).trim();
+
+
+    errorBox.textContent =
+      text;
+
+
+    errorBox.hidden =
+      !text;
+
+  },
+
+
+  /* ============================================================
+     LOADING DA KEY
+     ============================================================ */
+
+  showKeyLoading(
+    loading
+  ) {
+
+    const loadingBox =
+      document.getElementById(
+        'rd4x-key-loading'
+      );
+
+
+    if (loadingBox) {
+
+      loadingBox.hidden =
+        !loading;
+
+    }
+
+  },
+
+
+  /* ============================================================
      ERRO DE AUTENTICAÇÃO
      ============================================================ */
 
-  showAuthError(error) {
+  showAuthError(
+    error
+  ) {
 
     const loginScreen =
       document.getElementById(
@@ -368,6 +943,9 @@ const App = {
       document.getElementById(
         'discord-login-btn'
       );
+
+
+    this.hideKeyScreen();
 
 
     if (loginScreen) {
@@ -411,8 +989,6 @@ const App = {
 
     }
 
-
-    /* Fallback caso a tela não exista */
 
     const content =
       document.getElementById(
@@ -710,7 +1286,7 @@ const App = {
 
     const searchInput =
       document.getElementById(
-        'global-search-input'
+        'global-search'
       );
 
 
@@ -749,7 +1325,7 @@ const App = {
 
     const topbarUser =
       document.getElementById(
-        'topbar-user'
+        'user-btn'
       );
 
 
@@ -788,6 +1364,29 @@ const App = {
       'keydown',
       event => {
 
+        /*
+         * Não interceptar teclas enquanto
+         * o usuário está digitando a Key.
+         */
+
+        const activeElement =
+          document.activeElement;
+
+
+        const isKeyInput =
+          activeElement?.id ===
+          'rd4x-key-input';
+
+
+        if (
+          isKeyInput
+        ) {
+
+          return;
+
+        }
+
+
         if (
           (event.ctrlKey ||
             event.metaKey) &&
@@ -799,7 +1398,7 @@ const App = {
 
           const input =
             document.getElementById(
-              'global-search-input'
+              'global-search'
             );
 
 
@@ -863,9 +1462,31 @@ const App = {
       'hashchange',
       () => {
 
+        /*
+         * Sem Discord não há Dashboard.
+         */
+
         if (
           !this.authenticated
         ) {
+
+          this.showDiscordLogin();
+
+          return;
+
+        }
+
+
+        /*
+         * Com Discord autenticado, mas sem Key,
+         * nenhuma rota pode abrir.
+         */
+
+        if (
+          !this.keyValidated
+        ) {
+
+          this.showKeyScreen();
 
           return;
 
@@ -927,6 +1548,11 @@ const App = {
 
   route() {
 
+    /*
+     * PRIMEIRA BARREIRA:
+     * Discord
+     */
+
     if (
       !this.authenticated
     ) {
@@ -938,10 +1564,43 @@ const App = {
     }
 
 
+    /*
+     * SEGUNDA BARREIRA:
+     * RD4X Key
+     */
+
+    if (
+      !this.keyValidated
+    ) {
+
+      this.showKeyScreen();
+
+      return;
+
+    }
+
+
     const {
       route
     } =
       this.parseHash();
+
+
+    /*
+     * Nunca deixar #/key virar uma página
+     * do Dashboard.
+     */
+
+    if (
+      route === 'key'
+    ) {
+
+      window.location.hash =
+        '#/overview';
+
+      return;
+
+    }
 
 
     const page =
@@ -974,6 +1633,13 @@ const App = {
 
 
     try {
+
+      /*
+       * Mantemos a chamada original das páginas.
+       *
+       * As páginas existentes continuam responsáveis
+       * por obter seus dados e preencher #content.
+       */
 
       page();
 
@@ -1110,15 +1776,9 @@ const App = {
 
     }
 
-    if (
-      document.title !==
-      `RD4X Dashboard V10`
-    ) {
 
-      document.title =
-        `RD4X Dashboard V10`;
-
-    }
+    document.title =
+      'RD4X Dashboard V10';
 
   }
 
@@ -1157,24 +1817,64 @@ document.addEventListener(
         );
 
 
-      if (loginScreen) {
+      const keyScreen =
+        document.getElementById(
+          'rd4x-key-screen'
+        );
 
-        loginScreen.hidden =
-          false;
+
+      /*
+       * Se o erro aconteceu antes da autenticação
+       * Discord, mostramos o login.
+       */
+
+      if (
+        !App.authenticated
+      ) {
+
+        if (keyScreen) {
+
+          keyScreen.hidden =
+            true;
+
+        }
+
+
+        if (loginScreen) {
+
+          loginScreen.hidden =
+            false;
+
+        }
+
+
+        if (loginError) {
+
+          loginError.textContent =
+            error?.message ||
+            'Erro ao inicializar o dashboard.';
+
+          loginError.hidden =
+            false;
+
+        }
+
+        return;
 
       }
 
 
-      if (loginError) {
+      /*
+       * Se o Discord está autenticado,
+       * mostramos a tela da Key.
+       */
 
-        loginError.textContent =
-          error?.message ||
-          'Erro ao inicializar o dashboard.';
+      App.showKeyScreen();
 
-        loginError.hidden =
-          false;
-
-      }
+      App.showKeyError(
+        error?.message ||
+        'Erro ao inicializar a autenticação da Key.'
+      );
 
     }
 
