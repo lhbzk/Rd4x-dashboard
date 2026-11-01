@@ -40,8 +40,54 @@ const CONFIG = {
 const Api = {
 
   /* ==========================================================
-     URL
+     CONFIG
      ========================================================== */
+
+  isMock() {
+    return CONFIG.MOCK_MODE === true;
+  },
+
+
+  getConfig() {
+    return {
+      mockMode:
+        CONFIG.MOCK_MODE,
+
+      apiBaseUrl:
+        CONFIG.API_BASE_URL,
+
+      refreshInterval:
+        CONFIG.REFRESH_INTERVAL,
+
+      requestTimeout:
+        CONFIG.REQUEST_TIMEOUT,
+
+      environment:
+        CONFIG.ENVIRONMENT,
+
+      dashboardVersion:
+        CONFIG.DASHBOARD_VERSION,
+
+      apiVersion:
+        CONFIG.API_VERSION,
+
+      connected:
+        !CONFIG.MOCK_MODE
+    };
+  },
+
+
+  /* ==========================================================
+     UTILITÁRIOS
+     ========================================================== */
+
+  _delay(ms = 250) {
+    return new Promise(
+      resolve =>
+        setTimeout(resolve, ms)
+    );
+  },
+
 
   _buildUrl(path) {
     return (
@@ -52,13 +98,52 @@ const Api = {
   },
 
 
+  _buildQuery(params = {}) {
+    const query =
+      new URLSearchParams();
+
+    Object.entries(params || {})
+      .forEach(([key, value]) => {
+        if (
+          value === undefined ||
+          value === null ||
+          value === ''
+        ) {
+          return;
+        }
+
+        query.set(
+          key,
+          String(value)
+        );
+      });
+
+    const result =
+      query.toString();
+
+    return result
+      ? `?${result}`
+      : '';
+  },
+
+
   /* ==========================================================
-     REQUEST CENTRAL
+     REQUEST PRINCIPAL
      ========================================================== */
 
-  async _request(method, path, body) {
+  async _request(
+    method,
+    path,
+    body
+  ) {
+    if (CONFIG.MOCK_MODE) {
+      throw new Error(
+        'Requisição real bloqueada em MOCK_MODE'
+      );
+    }
 
-    const url = this._buildUrl(path);
+    const url =
+      this._buildUrl(path);
 
     const controller =
       new AbortController();
@@ -84,99 +169,62 @@ const Api = {
         controller.signal
     };
 
-
     if (
       body !== undefined &&
       body !== null
     ) {
-
-      options.headers['Content-Type'] =
+      options.headers[
+        'Content-Type'
+      ] =
         'application/json';
 
       options.body =
         JSON.stringify(body);
     }
 
-
     try {
-
-      console.log(
-        '[RD4X API] REQUEST:',
-        method,
-        path,
-        body || null
-      );
-
-
       const response =
         await fetch(
           url,
           options
         );
 
-
       const text =
         await response.text();
-
 
       const cleanText =
         String(text || '')
           .replace(/^\uFEFF/, '')
           .trim();
 
-
       let data = null;
 
-
       if (cleanText) {
-
         try {
-
           data =
-            JSON.parse(cleanText);
-
-        } catch (parseError) {
-
+            JSON.parse(
+              cleanText
+            );
+        } catch {
           console.error(
             `[RD4X API] Resposta não-JSON em ${path}:`,
             cleanText
           );
 
-          const error =
-            new Error(
-              `A API retornou uma resposta inválida em ${path}.`
-            );
-
-          error.status =
-            response.status;
-
-          error.raw =
-            cleanText;
-
-          throw error;
+          throw new Error(
+            `A API retornou uma resposta inválida em ${path}.`
+          );
         }
       }
 
-
-      console.log(
-        '[RD4X API] RESPONSE:',
-        response.status,
-        path,
-        data
-      );
-
-
       if (!response.ok) {
-
         const error =
           new Error(
             data?.error ||
             data?.message ||
             data?.reason ||
-            data?.motivo ||
             `HTTP ${response.status}`
           );
-
 
         error.status =
           response.status;
@@ -187,16 +235,13 @@ const Api = {
         throw error;
       }
 
-
       return data;
 
     } catch (error) {
-
       if (
         error?.name ===
         'AbortError'
       ) {
-
         const timeoutError =
           new Error(
             `Tempo limite excedido ao acessar ${path}`
@@ -205,41 +250,33 @@ const Api = {
         timeoutError.status =
           408;
 
-        timeoutError.code =
-          'REQUEST_TIMEOUT';
-
         throw timeoutError;
       }
-
 
       throw error;
 
     } finally {
-
       clearTimeout(timeout);
     }
   },
 
 
-  /* ==========================================================
-     GET
-     ========================================================== */
-
-  async _get(path) {
-
+  async _get(
+    path,
+    params = {}
+  ) {
     return this._request(
       'GET',
-      path
+      path +
+        this._buildQuery(params)
     );
   },
 
 
-  /* ==========================================================
-     POST
-     ========================================================== */
-
-  async _post(path, body) {
-
+  async _post(
+    path,
+    body = {}
+  ) {
     return this._request(
       'POST',
       path,
@@ -248,346 +285,10 @@ const Api = {
   },
 
 
-  /* ==========================================================
-     AUTH — DISCORD
-     ========================================================== */
-
-  async login() {
-
-    window.location.href =
-      this._buildUrl(
-        '/api/auth/discord/login'
-      );
-  },
-
-
-  async logout() {
-
-    return this._post(
-      '/api/auth/discord/logout',
-      {}
-    );
-  },
-
-
-  async getCurrentUser() {
-
-    return this._get(
-      '/api/auth/discord/me'
-    );
-  },
-
-
-  async checkAuth() {
-
-    return this._get(
-      '/api/auth/discord/me'
-    );
-  },
-
-
-  async refreshAuth() {
-
-    return this._get(
-      '/api/auth/discord/me'
-    );
-  },
-
-
-  /* ==========================================================
-     RD4X KEY — VALIDAÇÃO
-     ========================================================== */
-
-  async validateKey(
-    key,
-    hwid = null
-  ) {
-
-    const cleanKey =
-      String(key || '').trim();
-
-
-    if (!cleanKey) {
-
-      return {
-        success: false,
-        valid: false,
-        reason: 'key_ausente',
-        diagnostic: {
-          client: true,
-          stage: 'api.validateKey',
-          reason: 'key_ausente'
-        }
-      };
-    }
-
-
-    const payload = {
-      key: cleanKey
-    };
-
-
-    if (
-      hwid !== undefined &&
-      hwid !== null &&
-      String(hwid).trim()
-    ) {
-
-      payload.hwid =
-        String(hwid).trim();
-    }
-
-
-    console.log(
-      '[RD4X KEY] Enviando validação:',
-      {
-        keyPresent: true,
-        hwidPresent:
-          !!payload.hwid
-      }
-    );
-
-
-    try {
-
-      const response =
-        await this._post(
-          '/api/v2/keys/validate',
-          payload
-        );
-
-
-      console.log(
-        '[RD4X KEY] Resposta recebida:',
-        response
-      );
-
-
-      /*
-       * NÃO altera a resposta do Worker.
-       * O app.js receberá exatamente
-       * o motivo retornado pela API.
-       */
-
-      if (
-        response &&
-        typeof response === 'object'
-      ) {
-
-        return response;
-      }
-
-
-      return {
-        success: false,
-        valid: false,
-        reason: 'resposta_vazia',
-        diagnostic: {
-          client: true,
-          stage: 'api.validateKey',
-          reason: 'resposta_vazia'
-        }
-      };
-
-    } catch (error) {
-
-      console.error(
-        '[RD4X KEY] Erro HTTP:',
-        error
-      );
-
-
-      /*
-       * Se o Worker respondeu com JSON,
-       * preservamos absolutamente tudo.
-       */
-
-      if (
-        error &&
-        error.data &&
-        typeof error.data === 'object'
-      ) {
-
-        return {
-          ...error.data,
-
-          success:
-            error.data.success === true
-              ? true
-              : false,
-
-          valid:
-            error.data.valid === true
-              ? true
-              : false,
-
-          diagnostic:
-            error.data.diagnostic ||
-            {
-              client: true,
-              stage: 'api.validateKey.catch',
-              httpStatus:
-                error.status || null
-            }
-        };
-      }
-
-
-      /*
-       * Se nem uma resposta JSON chegou,
-       * devolvemos um diagnóstico explícito.
-       */
-
-      return {
-        success: false,
-
-        valid: false,
-
-        reason:
-          error?.code ||
-          (
-            error?.status
-              ? `http_${error.status}`
-              : 'request_failed'
-          ),
-
-        message:
-          error?.message ||
-          'Falha ao comunicar com o servidor.',
-
-        diagnostic: {
-          client: true,
-
-          stage:
-            'api.validateKey.network',
-
-          httpStatus:
-            error?.status || null,
-
-          errorName:
-            error?.name || null,
-
-          errorMessage:
-            error?.message || null
-        }
-      };
-    }
-  },
-
-
-  /* ==========================================================
-     API RD4X
-     ========================================================== */
-
-  async getOverview() {
-
-    return this._get(
-      '/api/rd4x/overview'
-    );
-  },
-
-
-  async getUsers() {
-
-    return this._get(
-      '/api/rd4x/users'
-    );
-  },
-
-
-  async getTickets() {
-
-    return this._get(
-      '/api/rd4x/tickets'
-    );
-  },
-
-
-  async getReleases() {
-
-    return this._get(
-      '/api/rd4x/releases'
-    );
-  },
-
-
-  async getIncidents() {
-
-    return this._get(
-      '/api/rd4x/incidents'
-    );
-  },
-
-
-  async getAudit() {
-
-    return this._get(
-      '/api/rd4x/audit'
-    );
-  },
-
-
-  async getStats() {
-
-    return this._get(
-      '/api/rd4x/stats'
-    );
-  },
-
-
-  async getTranscripts() {
-
-    return this._get(
-      '/api/rd4x/transcripts'
-    );
-  },
-
-
-  async getSettings() {
-
-    return this._get(
-      '/api/rd4x/settings'
-    );
-  },
-
-
-  async search(query) {
-
-    return this._get(
-      `/api/rd4x/search?q=${encodeURIComponent(
-        String(query || '')
-      )}`
-    );
-  },
-
-
-  /* ==========================================================
-     GENERIC
-     ========================================================== */
-
-  async get(path) {
-
-    return this._get(path);
-  },
-
-
-  async post(
+  async _put(
     path,
-    body
+    body = {}
   ) {
-
-    return this._post(
-      path,
-      body
-    );
-  },
-
-
-  async put(
-    path,
-    body
-  ) {
-
     return this._request(
       'PUT',
       path,
@@ -596,11 +297,10 @@ const Api = {
   },
 
 
-  async patch(
+  async _patch(
     path,
-    body
+    body = {}
   ) {
-
     return this._request(
       'PATCH',
       path,
@@ -609,44 +309,1121 @@ const Api = {
   },
 
 
-  async delete(path) {
-
+  async _delete(
+    path,
+    body
+  ) {
     return this._request(
       'DELETE',
-      path
+      path,
+      body
     );
+  },
+
+
+  /* ==========================================================
+     OVERVIEW
+     ========================================================== */
+
+  async getOverview() {
+    if (CONFIG.MOCK_MODE) {
+      await this._delay();
+
+      return this._computeMockOverview();
+    }
+
+    const overviewResponse =
+      await this._get(
+        '/api/rd4x/overview'
+      );
+
+    let adminsResponse = {
+      success: true,
+      data: []
+    };
+
+    try {
+      adminsResponse =
+        await this._get(
+          '/api/rd4x/admins'
+        );
+    } catch (error) {
+      console.warn(
+        '[RD4X] Não foi possível carregar administradores:',
+        error
+      );
+    }
+
+    const data =
+      overviewResponse?.data ||
+      {};
+
+    const admins =
+      Array.isArray(
+        adminsResponse?.data
+      )
+        ? adminsResponse.data
+        : [];
+
+    return {
+      users: {
+        total:
+          Number(data.ativos) || 0,
+
+        active:
+          Number(data.ativos) || 0,
+
+        blacklisted: 0,
+        suspended: 0,
+        expired: 0
+      },
+
+      tickets: {
+        total:
+          Number(
+            data.ticketsAbertos
+          ) || 0,
+
+        open:
+          Number(
+            data.ticketsAbertos
+          ) || 0,
+
+        inProgress: 0,
+        waitingUser: 0,
+        resolved: 0,
+        closed: 0
+      },
+
+      releases: {
+        total:
+          Number(
+            data.execucoes
+          ) || 0,
+
+        last24h: 0,
+
+        active:
+          Number(
+            data.execucoes
+          ) || 0,
+
+        revoked: 0
+      },
+
+      incidents: {
+        total:
+          Number(
+            data.incidentesAbertos
+          ) || 0,
+
+        open:
+          Number(
+            data.incidentesAbertos
+          ) || 0
+      },
+
+      hwid: {
+        active: 0
+      },
+
+      admins:
+        admins.map(
+          admin => ({
+            id:
+              admin.id,
+
+            discordId:
+              admin.discordId ||
+              admin.id,
+
+            name:
+              admin.name ||
+              'Administrador',
+
+            tag:
+              admin.tag ||
+              admin.name ||
+              'Administrador',
+
+            avatar:
+              admin.avatar ||
+              '',
+
+            role:
+              admin.role ||
+              'Administrador',
+
+            status:
+              admin.status ||
+              'offline',
+
+            isOwner:
+              Boolean(
+                admin.isOwner
+              )
+          })
+        ),
+
+      recentActivity: [],
+      recentTickets: [],
+      recentReleases: [],
+      recentIncidents: [],
+      systemActivity: [],
+
+      vendas:
+        Number(
+          data.vendas
+        ) || 0,
+
+      faturamento:
+        Number(
+          data.faturamento
+        ) || 0
+    };
+  },
+
+
+  /* ==========================================================
+     USUÁRIOS
+     ========================================================== */
+
+  async getUsers(
+    params = {}
+  ) {
+    if (CONFIG.MOCK_MODE) {
+      await this._delay(180);
+
+      return {
+        success: true,
+
+        data:
+          Array.isArray(
+            window.MockData?.users
+          )
+            ? window.MockData.users.slice()
+            : []
+      };
+    }
+
+    return this._get(
+      '/api/dashboard/users',
+      params
+    );
+  },
+
+
+  async getUser(id) {
+    return this._get(
+      `/api/dashboard/users/${encodeURIComponent(id)}`
+    );
+  },
+
+
+  async getUserByNick(nick) {
+    return this._get(
+      '/api/dashboard/users',
+      { nick }
+    );
+  },
+
+
+  /* ==========================================================
+     TICKETS
+     ========================================================== */
+
+  async getTickets(
+    params = {}
+  ) {
+    if (CONFIG.MOCK_MODE) {
+      await this._delay(180);
+
+      return {
+        success: true,
+
+        data:
+          Array.isArray(
+            window.MockData?.tickets
+          )
+            ? window.MockData.tickets.slice()
+            : []
+      };
+    }
+
+    return this._get(
+      '/api/dashboard/tickets',
+      params
+    );
+  },
+
+
+  async getTicket(id) {
+    return this._get(
+      `/api/dashboard/tickets/${encodeURIComponent(id)}`
+    );
+  },
+
+
+  async getTicketTranscript(id) {
+    return this._get(
+      `/api/dashboard/tickets/${encodeURIComponent(id)}/transcript`
+    );
+  },
+
+
+  async closeTicket(
+    id,
+    payload = {}
+  ) {
+    return this._post(
+      `/api/dashboard/tickets/${encodeURIComponent(id)}/close`,
+      payload
+    );
+  },
+
+
+  async reopenTicket(
+    id,
+    payload = {}
+  ) {
+    return this._post(
+      `/api/dashboard/tickets/${encodeURIComponent(id)}/reopen`,
+      payload
+    );
+  },
+
+
+  /* ==========================================================
+     AUDITORIA
+     ========================================================== */
+
+  async getAudit(
+    params = {}
+  ) {
+    if (CONFIG.MOCK_MODE) {
+      await this._delay(180);
+
+      return {
+        success: true,
+
+        data:
+          Array.isArray(
+            window.MockData?.audit
+          )
+            ? window.MockData.audit.slice()
+            : []
+      };
+    }
+
+    return this._get(
+      '/api/dashboard/audit',
+      params
+    );
+  },
+
+
+  async getAuditEvent(id) {
+    return this._get(
+      `/api/dashboard/audit/${encodeURIComponent(id)}`
+    );
+  },
+
+
+  /* ==========================================================
+     ADMINISTRADORES
+     ========================================================== */
+
+  async getAdmins() {
+    if (CONFIG.MOCK_MODE) {
+      await this._delay(150);
+
+      return {
+        success: true,
+        data: []
+      };
+    }
+
+    return this._get(
+      '/api/rd4x/admins'
+    );
+  },
+
+
+  async getAdmin(id) {
+    return this._get(
+      `/api/dashboard/admins/${encodeURIComponent(id)}`
+    );
+  },
+
+
+  /* ==========================================================
+     RELEASES
+     ========================================================== */
+
+  async getReleases(
+    params = {}
+  ) {
+    if (CONFIG.MOCK_MODE) {
+      await this._delay(160);
+
+      return {
+        success: true,
+
+        data:
+          Array.isArray(
+            window.MockData?.releases
+          )
+            ? window.MockData.releases.slice()
+            : []
+      };
+    }
+
+    return this._get(
+      '/api/dashboard/releases',
+      params
+    );
+  },
+
+
+  async getRelease(id) {
+    return this._get(
+      `/api/dashboard/releases/${encodeURIComponent(id)}`
+    );
+  },
+
+
+  async postRelease(payload) {
+    if (CONFIG.MOCK_MODE) {
+      await this._delay(400);
+
+      return {
+        success: true,
+        ok: true,
+        simulated: true,
+        message:
+          'Release simulada com sucesso.',
+        payload
+      };
+    }
+
+    return this._post(
+      '/api/dashboard/release',
+      payload
+    );
+  },
+
+
+  async postRevoke(payload) {
+    if (CONFIG.MOCK_MODE) {
+      await this._delay(400);
+
+      return {
+        success: true,
+        ok: true,
+        simulated: true,
+        message:
+          'Release revogada (simulação).',
+        payload
+      };
+    }
+
+    return this._post(
+      '/api/dashboard/revoke',
+      payload
+    );
+  },
+
+
+  async revokeRelease(
+    id,
+    payload = {}
+  ) {
+    return this._post(
+      `/api/dashboard/releases/${encodeURIComponent(id)}/revoke`,
+      payload
+    );
+  },
+
+
+  /* ==========================================================
+     INCIDENTES
+     ========================================================== */
+
+  async getIncidents(
+    params = {}
+  ) {
+    if (CONFIG.MOCK_MODE) {
+      await this._delay(160);
+
+      return {
+        success: true,
+
+        data:
+          Array.isArray(
+            window.MockData?.incidents
+          )
+            ? window.MockData.incidents.slice()
+            : []
+      };
+    }
+
+    return this._get(
+      '/api/dashboard/incidents',
+      params
+    );
+  },
+
+
+  async getIncident(id) {
+    return this._get(
+      `/api/dashboard/incidents/${encodeURIComponent(id)}`
+    );
+  },
+
+
+  async createIncident(payload) {
+    return this._post(
+      '/api/dashboard/incidents',
+      payload
+    );
+  },
+
+
+  async updateIncident(
+    id,
+    payload
+  ) {
+    return this._patch(
+      `/api/dashboard/incidents/${encodeURIComponent(id)}`,
+      payload
+    );
+  },
+
+
+  async closeIncident(
+    id,
+    payload = {}
+  ) {
+    return this._post(
+      `/api/dashboard/incidents/${encodeURIComponent(id)}/close`,
+      payload
+    );
+  },
+
+
+  /* ==========================================================
+     HWID
+     ========================================================== */
+
+  async getHwid(
+    params = {}
+  ) {
+    return this._get(
+      '/api/dashboard/hwid',
+      params
+    );
+  },
+
+
+  async getUserHwid(userId) {
+    return this._get(
+      `/api/dashboard/users/${encodeURIComponent(userId)}/hwid`
+    );
+  },
+
+
+  async postResetHwid(payload) {
+    if (CONFIG.MOCK_MODE) {
+      await this._delay(400);
+
+      return {
+        success: true,
+        ok: true,
+        simulated: true,
+        message:
+          'HWID resetado (simulação).',
+        payload
+      };
+    }
+
+    return this._post(
+      '/api/dashboard/reset-hwid',
+      payload
+    );
+  },
+
+
+  async resetUserHwid(
+    userId,
+    payload = {}
+  ) {
+    return this._post(
+      `/api/dashboard/users/${encodeURIComponent(userId)}/reset-hwid`,
+      payload
+    );
+  },
+
+
+  /* ==========================================================
+     BLACKLIST
+     ========================================================== */
+
+  async getBlacklist(
+    params = {}
+  ) {
+    return this._get(
+      '/api/dashboard/blacklist',
+      params
+    );
+  },
+
+
+  async postBlacklist(payload) {
+    if (CONFIG.MOCK_MODE) {
+      await this._delay(400);
+
+      return {
+        success: true,
+        ok: true,
+        simulated: true,
+        message:
+          'Usuário blacklistado (simulação).',
+        payload
+      };
+    }
+
+    return this._post(
+      '/api/dashboard/blacklist',
+      payload
+    );
+  },
+
+
+  async blacklistUser(
+    userId,
+    payload = {}
+  ) {
+    return this._post(
+      `/api/dashboard/users/${encodeURIComponent(userId)}/blacklist`,
+      payload
+    );
+  },
+
+
+  async postUnblacklist(payload) {
+    if (CONFIG.MOCK_MODE) {
+      await this._delay(400);
+
+      return {
+        success: true,
+        ok: true,
+        simulated: true,
+        message:
+          'Usuário removido da blacklist.',
+        payload
+      };
+    }
+
+    return this._post(
+      '/api/dashboard/unblacklist',
+      payload
+    );
+  },
+
+
+  async unblacklistUser(
+    userId,
+    payload = {}
+  ) {
+    return this._post(
+      `/api/dashboard/users/${encodeURIComponent(userId)}/unblacklist`,
+      payload
+    );
+  },
+
+
+  /* ==========================================================
+     BUSCA
+     ========================================================== */
+
+  async search(
+    query,
+    params = {}
+  ) {
+    return this._get(
+      '/api/dashboard/search',
+      {
+        q: query,
+        ...params
+      }
+    );
+  },
+
+
+  async searchUsers(
+    query,
+    params = {}
+  ) {
+    return this._get(
+      '/api/dashboard/search/users',
+      {
+        q: query,
+        ...params
+      }
+    );
+  },
+
+
+  async searchTickets(
+    query,
+    params = {}
+  ) {
+    return this._get(
+      '/api/dashboard/search/tickets',
+      {
+        q: query,
+        ...params
+      }
+    );
+  },
+
+
+  async searchAudit(
+    query,
+    params = {}
+  ) {
+    return this._get(
+      '/api/dashboard/search/audit',
+      {
+        q: query,
+        ...params
+      }
+    );
+  },
+
+
+  /* ==========================================================
+     ESTATÍSTICAS
+     ========================================================== */
+
+  async getStats(
+    params = {}
+  ) {
+    return this._get(
+      '/api/dashboard/stats',
+      params
+    );
+  },
+
+
+  async getStatsOverview(
+    params = {}
+  ) {
+    return this._get(
+      '/api/dashboard/stats/overview',
+      params
+    );
+  },
+
+
+  async getStatsUsers(
+    params = {}
+  ) {
+    return this._get(
+      '/api/dashboard/stats/users',
+      params
+    );
+  },
+
+
+  async getStatsTickets(
+    params = {}
+  ) {
+    return this._get(
+      '/api/dashboard/stats/tickets',
+      params
+    );
+  },
+
+
+  async getStatsReleases(
+    params = {}
+  ) {
+    return this._get(
+      '/api/dashboard/stats/releases',
+      params
+    );
+  },
+
+
+  async getStatsIncidents(
+    params = {}
+  ) {
+    return this._get(
+      '/api/dashboard/stats/incidents',
+      params
+    );
+  },
+
+
+  /* ==========================================================
+     TRANSCRIÇÕES
+     ========================================================== */
+
+  async getTranscripts(
+    params = {}
+  ) {
+    if (CONFIG.MOCK_MODE) {
+      await this._delay(160);
+
+      return {
+        success: true,
+
+        data:
+          Array.isArray(
+            window.MockData?.transcripts
+          )
+            ? window.MockData.transcripts.slice()
+            : []
+      };
+    }
+
+    return this._get(
+      '/api/dashboard/transcripts',
+      params
+    );
+  },
+
+
+  async getTranscript(id) {
+    return this._get(
+      `/api/dashboard/transcripts/${encodeURIComponent(id)}`
+    );
+  },
+
+
+  /* ==========================================================
+     AÇÕES ADMINISTRATIVAS
+     ========================================================== */
+
+  async executeAction(
+    action,
+    payload = {}
+  ) {
+    return this._post(
+      `/api/dashboard/actions/${encodeURIComponent(action)}`,
+      payload
+    );
+  },
+
+
+  async suspendUser(
+    userId,
+    payload = {}
+  ) {
+    return this._post(
+      `/api/dashboard/users/${encodeURIComponent(userId)}/suspend`,
+      payload
+    );
+  },
+
+
+  async unsuspendUser(
+    userId,
+    payload = {}
+  ) {
+    return this._post(
+      `/api/dashboard/users/${encodeURIComponent(userId)}/unsuspend`,
+      payload
+    );
+  },
+
+
+  async deleteUser(
+    userId,
+    payload = {}
+  ) {
+    return this._delete(
+      `/api/dashboard/users/${encodeURIComponent(userId)}`,
+      payload
+    );
+  },
+
+
+  /* ==========================================================
+     AUTENTICAÇÃO DISCORD
+     ========================================================== */
+
+  async login() {
+    window.location.href =
+      this._buildUrl(
+        '/api/auth/discord/login'
+      );
+  },
+
+
+  async logout() {
+    return this._post(
+      '/api/auth/discord/logout',
+      {}
+    );
+  },
+
+
+  async getCurrentUser() {
+    return this._get(
+      '/api/auth/discord/me'
+    );
+  },
+
+
+  async checkAuth() {
+    return this._get(
+      '/api/auth/discord/me'
+    );
+  },
+
+
+  async refreshAuth() {
+    return this._get(
+      '/api/auth/discord/me'
+    );
+  },
+
+
+  /* ==========================================================
+     KEY RD4X
+     ========================================================== */
+
+  async validateKey(
+    key,
+    hwid = null
+  ) {
+    const cleanKey =
+      String(
+        key || ''
+      ).trim();
+
+    if (!cleanKey) {
+      return {
+        success: false,
+        valid: false,
+        reason:
+          'key_ausente'
+      };
+    }
+
+    const payload = {
+      key:
+        cleanKey
+    };
+
+    if (
+      hwid !== undefined &&
+      hwid !== null &&
+      String(hwid).trim()
+    ) {
+      payload.hwid =
+        String(
+          hwid
+        ).trim();
+    }
+
+    return this._post(
+      '/api/v2/keys/validate',
+      payload
+    );
+  },
+
+
+  /* ==========================================================
+     SISTEMA
+     ========================================================== */
+
+  async getHealth() {
+    return this._get(
+      '/api/dashboard/health'
+    );
+  },
+
+
+  async getSystemStatus() {
+    return this._get(
+      '/api/dashboard/system'
+    );
+  },
+
+
+  /* ==========================================================
+     MOCK
+     ========================================================== */
+
+  _computeMockOverview() {
+    const users =
+      Array.isArray(
+        window.MockData?.users
+      )
+        ? window.MockData.users
+        : [];
+
+    const tickets =
+      Array.isArray(
+        window.MockData?.tickets
+      )
+        ? window.MockData.tickets
+        : [];
+
+    const releases =
+      Array.isArray(
+        window.MockData?.releases
+      )
+        ? window.MockData.releases
+        : [];
+
+    const incidents =
+      Array.isArray(
+        window.MockData?.incidents
+      )
+        ? window.MockData.incidents
+        : [];
+
+    return {
+      users: {
+        total:
+          users.length,
+
+        active:
+          users.filter(
+            u =>
+              u.status === 'Ativo'
+          ).length,
+
+        blacklisted:
+          users.filter(
+            u =>
+              u.blacklisted
+          ).length,
+
+        suspended:
+          users.filter(
+            u =>
+              u.status === 'Suspenso'
+          ).length,
+
+        expired:
+          users.filter(
+            u =>
+              u.status === 'Expirado'
+          ).length
+      },
+
+      tickets: {
+        total:
+          tickets.length,
+
+        open:
+          tickets.filter(
+            t =>
+              t.status === 'Aberto'
+          ).length,
+
+        inProgress:
+          tickets.filter(
+            t =>
+              t.status ===
+              'Em atendimento'
+          ).length,
+
+        waitingUser:
+          tickets.filter(
+            t =>
+              t.status ===
+              'Aguardando usuário'
+          ).length,
+
+        resolved:
+          tickets.filter(
+            t =>
+              t.status === 'Resolvido'
+          ).length,
+
+        closed:
+          tickets.filter(
+            t =>
+              t.status === 'Fechado'
+          ).length
+      },
+
+      releases: {
+        total:
+          releases.length,
+
+        last24h:
+          releases.filter(
+            r =>
+              Date.now() -
+              new Date(
+                r.createdAt
+              ).getTime() <
+              24 * 3600 * 1000
+          ).length,
+
+        active:
+          releases.filter(
+            r =>
+              r.status === 'Ativa'
+          ).length,
+
+        revoked:
+          releases.filter(
+            r =>
+              r.status === 'Revogada'
+          ).length
+      },
+
+      incidents: {
+        total:
+          incidents.length,
+
+        open:
+          incidents.filter(
+            i =>
+              i.status === 'Aberto' ||
+              i.status === 'Investigando'
+          ).length
+      },
+
+      hwid: {
+        active:
+          users.filter(
+            u =>
+              u.hwid
+          ).length
+      },
+
+      admins: [],
+      recentActivity: [],
+      recentTickets: [],
+      recentReleases: [],
+      recentIncidents: [],
+
+      releaseVolumeAlert:
+        window.MockData?.releaseVolumeAlert,
+
+      systemActivity:
+        window.MockData?.systemActivity ||
+        []
+    };
   }
 };
 
 
 /* ============================================================
-   GLOBAL
+   EXPOSIÇÃO GLOBAL
    ============================================================ */
+
+window.CONFIG =
+  CONFIG;
 
 window.Api =
   Api;
-
-window.RD4X_CONFIG =
-  CONFIG;
-
-
-/* ============================================================
-   DEBUG
-   ============================================================ */
-
-console.log(
-  '[RD4X API] api.js carregado.',
-  {
-    version:
-      CONFIG.DASHBOARD_VERSION,
-
-    apiVersion:
-      CONFIG.API_VERSION,
-
-    baseUrl:
-      CONFIG.API_BASE_URL,
-
-    mockMode:
-      CONFIG.MOCK_MODE
-  }
-);
