@@ -587,55 +587,62 @@ export default {
     }
 
     if (
-      url.pathname ===
-        "/api/auth/discord/me" &&
-      request.method === "GET"
-    ) {
-      const session =
-        await getSession(
-          request
-        );
+  url.pathname ===
+    "/api/auth/discord/me" &&
+  request.method === "GET"
+) {
+  const session =
+    await getSession(
+      request
+    );
 
-      if (!session) {
-        return json(
-          {
-            success: false,
-            error:
-              "Sessão não autenticada"
-          },
-          401
-        );
-      }
+  if (!session) {
+    return json(
+      {
+        success: false,
+        authenticated: false,
+        error:
+          "Sessão não autenticada"
+      },
+      401
+    );
+  }
 
-      return json({
-        success: true,
+  const user = {
+    id:
+      session.sub,
 
-        data: {
-          id:
-            session.sub,
+    discordId:
+      session.sub,
 
-          discordId:
-            session.sub,
+    username:
+      session.username,
 
-          username:
-            session.username,
+    globalName:
+      session.globalName,
 
-          globalName:
-            session.globalName,
+    avatar:
+      session.avatar,
 
-          avatar:
-            session.avatar,
+    role:
+      session.role,
 
-          role:
-            session.role,
+    isOwner:
+      session.isOwner,
 
-          isOwner:
-            session.isOwner,
+    isAdmin:
+      true
+  };
 
-          isAdmin:
-            true
-        }
-      });
+  return json({
+    success: true,
+
+    authenticated: true,
+
+    user,
+
+    data: user
+  });
     }
 
     if (
