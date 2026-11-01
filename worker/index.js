@@ -11,19 +11,17 @@ export default {
     const API_KEY =
       String(env.DASHBOARD_API_KEY || "").trim();
 
-    /*
-     * A autorização do Discord permanece válida por longo prazo.
-     *
-     * A RD4X Key não é armazenada no cookie.
-     * Portanto, a Key continua sendo solicitada
-     * pelo Dashboard quando necessário.
-     */
+    const DISCORD_CLIENT_ID =
+      String(env.DISCORD_CLIENT_ID || "").trim();
+
+    const DISCORD_REDIRECT_URI =
+      String(
+        env.DISCORD_OAUTH_REDIRECT_URI ||
+          `${DASHBOARD_URL}/api/auth/discord/callback`
+      ).trim();
+
     const SESSION_MAX_AGE =
       10 * 365 * 24 * 60 * 60;
-
-    // =========================================================
-    // RESPOSTAS
-    // =========================================================
 
     function json(data, status = 200, extraHeaders = {}) {
       return new Response(
@@ -31,8 +29,10 @@ export default {
         {
           status,
           headers: {
-            "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "Content-Type":
+              "application/json; charset=utf-8",
+            "Cache-Control":
+              "no-store, no-cache, must-revalidate",
             "Pragma": "no-cache",
             "Expires": "0",
             ...extraHeaders
@@ -41,19 +41,15 @@ export default {
       );
     }
 
-    function redirect(location, extraHeaders = {}) {
+    function redirect(location, headers = {}) {
       return new Response(null, {
         status: 302,
         headers: {
-          "Location": location,
-          ...extraHeaders
+          Location: location,
+          ...headers
         }
       });
     }
-
-    // =========================================================
-    // BASE64URL
-    // =========================================================
 
     function base64urlEncode(bytes) {
       let binary = "";
@@ -71,11 +67,14 @@ export default {
     function base64urlDecode(value) {
       const normalized =
         value.replace(/-/g, "+").replace(/_/g, "/") +
-        "=".repeat((4 - (value.length % 4)) % 4);
+        "=".repeat(
+          (4 - (value.length % 4)) % 4
+        );
 
       const binary = atob(normalized);
 
-      const bytes = new Uint8Array(binary.length);
+      const bytes =
+        new Uint8Array(binary.length);
 
       for (let i = 0; i < binary.length; i++) {
         bytes[i] = binary.charCodeAt(i);
@@ -84,40 +83,36 @@ export default {
       return bytes;
     }
 
-    // =========================================================
-    // HMAC
-    // =========================================================
-
     async function hmac(message) {
       if (!API_KEY) {
-        throw new Error("DASHBOARD_API_KEY não configurada.");
+        throw new Error(
+          "DASHBOARD_API_KEY não configurada."
+        );
       }
 
-      const key = await crypto.subtle.importKey(
-        "raw",
-        new TextEncoder().encode(API_KEY),
-        {
-          name: "HMAC",
-          hash: "SHA-256"
-        },
-        false,
-        ["sign"]
-      );
+      const key =
+        await crypto.subtle.importKey(
+          "raw",
+          new TextEncoder().encode(API_KEY),
+          {
+            name: "HMAC",
+            hash: "SHA-256"
+          },
+          false,
+          ["sign"]
+        );
 
-      const signature = await crypto.subtle.sign(
-        "HMAC",
-        key,
-        new TextEncoder().encode(message)
-      );
+      const signature =
+        await crypto.subtle.sign(
+          "HMAC",
+          key,
+          new TextEncoder().encode(message)
+        );
 
       return base64urlEncode(
         new Uint8Array(signature)
       );
     }
-
-    // =========================================================
-    // SESSÃO DISCORD
-    // =========================================================
 
     async function createSession(user) {
       const now = Date.now();
@@ -140,26 +135,28 @@ export default {
         isOwner:
           Boolean(user.isOwner),
 
-        iat:
-          now,
+        iat: now,
 
         exp:
-          now + SESSION_MAX_AGE * 1000
+          now +
+          SESSION_MAX_AGE * 1000
       };
 
-      const encoded = base64urlEncode(
-        new TextEncoder().encode(
-          JSON.stringify(payload)
-        )
-      );
+      const encoded =
+        base64urlEncode(
+          new TextEncoder().encode(
+            JSON.stringify(payload)
+          )
+        );
 
-      const signature = await hmac(encoded);
+      const signature =
+        await hmac(encoded);
 
       return `${encoded}.${signature}`;
     }
 
     async function verifySession(token) {
-      if (!token || !API_KEY) {
+      if (!token) {
         return null;
       }
 
@@ -169,31 +166,28 @@ export default {
         return null;
       }
 
-      const encoded = parts[0];
-      const receivedSignature = parts[1];
-
-      let expectedSignature;
+      const [
+        encoded,
+        receivedSignature
+      ] = parts;
 
       try {
-        expectedSignature =
+        const expectedSignature =
           await hmac(encoded);
-      } catch {
-        return null;
-      }
 
-      if (
-        receivedSignature !==
-        expectedSignature
-      ) {
-        return null;
-      }
+        if (
+          receivedSignature !==
+          expectedSignature
+        ) {
+          return null;
+        }
 
-      try {
-        const payload = JSON.parse(
-          new TextDecoder().decode(
-            base64urlDecode(encoded)
-          )
-        );
+        const payload =
+          JSON.parse(
+            new TextDecoder().decode(
+              base64urlDecode(encoded)
+            )
+          );
 
         if (
           !payload ||
@@ -203,7 +197,10 @@ export default {
           return null;
         }
 
-        if (Date.now() > payload.exp) {
+        if (
+          Date.now() >=
+          Number(payload.exp)
+        ) {
           return null;
         }
 
@@ -232,14 +229,18 @@ export default {
         }
 
         const key =
-          cookie.slice(0, index).trim();
+          cookie
+            .slice(0, index)
+            .trim();
 
         if (key !== name) {
           continue;
         }
 
         const value =
-          cookie.slice(index + 1).trim();
+          cookie
+            .slice(index + 1)
+            .trim();
 
         try {
           return decodeURIComponent(value);
@@ -253,31 +254,32 @@ export default {
 
     async function getSession(request) {
       const token =
-        getCookie(request, "rd4x_session");
+        getCookie(
+          request,
+          "rd4x_session"
+        );
 
       return verifySession(token);
     }
-
-    // =========================================================
-    // OAUTH STATE
-    // =========================================================
 
     async function createOAuthState() {
       const payload = {
         iat: Date.now(),
 
-        nonce: base64urlEncode(
-          crypto.getRandomValues(
-            new Uint8Array(24)
+        nonce:
+          base64urlEncode(
+            crypto.getRandomValues(
+              new Uint8Array(24)
+            )
           )
-        )
       };
 
-      const encoded = base64urlEncode(
-        new TextEncoder().encode(
-          JSON.stringify(payload)
-        )
-      );
+      const encoded =
+        base64urlEncode(
+          new TextEncoder().encode(
+            JSON.stringify(payload)
+          )
+        );
 
       const signature =
         await hmac(encoded);
@@ -286,7 +288,7 @@ export default {
     }
 
     async function verifyOAuthState(state) {
-      if (!state || !API_KEY) {
+      if (!state) {
         return false;
       }
 
@@ -297,38 +299,36 @@ export default {
         return false;
       }
 
-      const encoded = parts[0];
-      const receivedSignature = parts[1];
-
-      let expectedSignature;
+      const [
+        encoded,
+        receivedSignature
+      ] = parts;
 
       try {
-        expectedSignature =
+        const expected =
           await hmac(encoded);
-      } catch {
-        return false;
-      }
 
-      if (
-        receivedSignature !==
-        expectedSignature
-      ) {
-        return false;
-      }
+        if (
+          receivedSignature !==
+          expected
+        ) {
+          return false;
+        }
 
-      try {
-        const data = JSON.parse(
-          new TextDecoder().decode(
-            base64urlDecode(encoded)
-          )
-        );
+        const data =
+          JSON.parse(
+            new TextDecoder().decode(
+              base64urlDecode(encoded)
+            )
+          );
 
         if (!data?.iat) {
           return false;
         }
 
         return (
-          Date.now() - data.iat <
+          Date.now() -
+            Number(data.iat) <
           10 * 60 * 1000
         );
       } catch {
@@ -336,766 +336,968 @@ export default {
       }
     }
 
-    // =========================================================
-    // LOGIN DISCORD
-    // =========================================================
+    function missingConfig() {
+      const missing = [];
 
-    if (
-      url.pathname ===
-        "/api/auth/discord/login" &&
-      request.method === "GET"
+      if (!API_URL) {
+        missing.push("RD4X_API_URL");
+      }
+
+      if (!API_KEY) {
+        missing.push("DASHBOARD_API_KEY");
+      }
+
+      if (!DISCORD_CLIENT_ID) {
+        missing.push("DISCORD_CLIENT_ID");
+      }
+
+      return missing;
+    }
+
+    async function apiFetch(
+      path,
+      options = {}
     ) {
-      const existingSession =
-        await getSession(request);
-
-      if (existingSession) {
-        return redirect(
-          `${DASHBOARD_URL}/#/key`
+      if (!API_URL) {
+        throw new Error(
+          "RD4X_API_URL não configurada."
         );
       }
 
-      if (!API_KEY || !API_URL) {
-        return json(
-          {
-            success: false,
-            error:
-              "Configuração do Worker incompleta."
-          },
-          500
+      if (!API_KEY) {
+        throw new Error(
+          "DASHBOARD_API_KEY não configurada."
         );
       }
 
-      const clientId =
+      const target =
+        `${API_URL}${path}`;
+
+      const headers =
+        new Headers(
+          options.headers || {}
+        );
+
+      headers.set(
+        "Authorization",
+        `Bearer ${API_KEY}`
+      );
+
+      headers.set(
+        "Accept",
+        "application/json"
+      );
+
+      if (
+        options.body &&
+        !headers.has("Content-Type")
+      ) {
+        headers.set(
+          "Content-Type",
+          "application/json"
+        );
+      }
+
+      return fetch(target, {
+        ...options,
+        headers
+      });
+    }
+
+    function setSessionCookie(token) {
+      return [
+        `rd4x_session=${encodeURIComponent(token)}`,
+        "Path=/",
+        "HttpOnly",
+        "Secure",
+        "SameSite=Lax",
+        `Max-Age=${SESSION_MAX_AGE}`
+      ].join("; ");
+    }
+
+    function clearSessionCookie() {
+      return [
+        "rd4x_session=",
+        "Path=/",
+        "HttpOnly",
+        "Secure",
+        "SameSite=Lax",
+        "Max-Age=0"
+      ].join("; ");
+    }
+
+    function getDashboardTarget(pathname) {
+      if (
+        pathname.startsWith(
+          "/api/rd4x/"
+        )
+      ) {
+        return (
+          "/api/dashboard/" +
+          pathname.slice(
+            "/api/rd4x/".length
+          )
+        );
+      }
+
+      if (
+        pathname.startsWith(
+          "/api/dashboard/"
+        )
+      ) {
+        return pathname;
+      }
+
+      return null;
+    }
+
+    async function proxyDashboard(
+      request,
+      env,
+      targetPath,
+      session
+    ) {
+      const targetUrl =
+        `${API_URL}${targetPath}${url.search}`;
+
+      const headers =
+        new Headers(request.headers);
+
+      headers.delete("host");
+
+      headers.set(
+        "Authorization",
+        `Bearer ${API_KEY}`
+      );
+
+      headers.set(
+        "X-Dashboard-User-ID",
+        String(session.sub)
+      );
+
+      headers.set(
+        "X-Dashboard-User-Role",
         String(
-          env.DISCORD_CLIENT_ID || ""
-        ).trim();
+          session.role ||
+            "Administrador"
+        )
+      );
 
-      const redirectUri =
-        String(
-          env.DISCORD_OAUTH_REDIRECT_URI ||
-            `${DASHBOARD_URL}/api/auth/discord/callback`
-        ).trim();
+      headers.set(
+        "X-Dashboard-User-Owner",
+        session.isOwner
+          ? "true"
+          : "false"
+      );
 
-      if (!clientId) {
-        return json(
-          {
-            success: false,
-            error:
-              "DISCORD_CLIENT_ID não configurado no Worker."
-          },
-          500
-        );
+      let body = undefined;
+
+      if (
+        request.method !== "GET" &&
+        request.method !== "HEAD"
+      ) {
+        body = await request.text();
       }
 
-      const state =
-        await createOAuthState();
+      const response =
+        await fetch(
+          targetUrl,
+          {
+            method:
+              request.method,
 
-      const params =
-        new URLSearchParams();
+            headers,
 
-      params.set(
-        "client_id",
-        clientId
+            body,
+
+            redirect: "manual"
+          }
+        );
+
+      const responseHeaders =
+        new Headers(
+          response.headers
+        );
+
+      responseHeaders.set(
+        "Cache-Control",
+        "no-store"
       );
 
-      params.set(
-        "response_type",
-        "code"
-      );
+      return new Response(
+        response.body,
+        {
+          status:
+            response.status,
 
-      params.set(
-        "redirect_uri",
-        redirectUri
-      );
+          statusText:
+            response.statusText,
 
-      params.set(
-        "scope",
-        "identify"
-      );
-
-      params.set(
-        "state",
-        state
-      );
-
-      return redirect(
-        `https://discord.com/oauth2/authorize?${params.toString()}`
+          headers:
+            responseHeaders
+        }
       );
     }
 
-    // =========================================================
-    // CALLBACK DISCORD
-    // =========================================================
+    try {
+      /*
+       * =========================================================
+       * CORS / OPTIONS
+       * =========================================================
+       */
 
-    if (
-      url.pathname ===
-        "/api/auth/discord/callback" &&
-      request.method === "GET"
-    ) {
-      const code =
-        url.searchParams.get("code");
+      if (
+        request.method === "OPTIONS"
+      ) {
+        return new Response(null, {
+          status: 204,
+          headers: {
+            "Access-Control-Allow-Origin":
+              DASHBOARD_URL,
 
-      const state =
-        url.searchParams.get("state");
+            "Access-Control-Allow-Credentials":
+              "true",
 
-      const oauthError =
-        url.searchParams.get("error");
+            "Access-Control-Allow-Methods":
+              "GET,POST,PUT,PATCH,DELETE,OPTIONS",
 
-      if (oauthError) {
-        return redirect(
-          `${DASHBOARD_URL}/#/login?error=discord_cancelado`
-        );
+            "Access-Control-Allow-Headers":
+              "Content-Type, Authorization"
+          }
+        });
       }
 
-      if (!code || !state) {
-        return redirect(
-          `${DASHBOARD_URL}/#/login?error=oauth_invalido`
-        );
+      /*
+       * =========================================================
+       * WORKER STATUS
+       * =========================================================
+       */
+
+      if (
+        url.pathname ===
+        "/api/rd4x/worker-status"
+      ) {
+        const missing =
+          missingConfig();
+
+        return json({
+          success:
+            missing.length === 0,
+
+          worker: "online",
+
+          apiConfigured:
+            Boolean(API_URL),
+
+          apiKeyConfigured:
+            Boolean(API_KEY),
+
+          discordConfigured:
+            Boolean(DISCORD_CLIENT_ID),
+
+          redirectConfigured:
+            Boolean(
+              DISCORD_REDIRECT_URI
+            ),
+
+          missing
+        });
       }
 
-      const validState =
-        await verifyOAuthState(state);
+      /*
+       * =========================================================
+       * DISCORD LOGIN
+       * =========================================================
+       */
 
-      if (!validState) {
-        return redirect(
-          `${DASHBOARD_URL}/#/login?error=oauth_expirado`
-        );
-      }
+      if (
+        url.pathname ===
+        "/api/auth/discord/login"
+      ) {
+        const session =
+          await getSession(request);
 
-      if (!API_KEY || !API_URL) {
-        return redirect(
-          `${DASHBOARD_URL}/#/login?error=worker_config`
-        );
-      }
-
-      try {
-        const redirectUri =
-          String(
-            env.DISCORD_OAUTH_REDIRECT_URI ||
-              `${DASHBOARD_URL}/api/auth/discord/callback`
-          ).trim();
-
-        const response =
-          await fetch(
-            `${API_URL}/api/auth/discord/exchange`,
-            {
-              method: "POST",
-
-              headers: {
-                "Authorization":
-                  `Bearer ${API_KEY}`,
-
-                "Content-Type":
-                  "application/json",
-
-                "Accept":
-                  "application/json",
-
-                "Cache-Control":
-                  "no-cache"
-              },
-
-              body: JSON.stringify({
-                code,
-                redirectUri
-              })
-            }
+        if (session) {
+          return redirect(
+            `${DASHBOARD_URL}/#/key`
           );
-
-        const text =
-          await response.text();
-
-        let data = null;
-
-        try {
-          data =
-            JSON.parse(text);
-        } catch {
-          data = null;
         }
 
-        if (
-          !response.ok ||
-          !data?.success ||
-          !data?.data?.id
-        ) {
-          console.error(
-            "[WORKER OAUTH]",
-            response.status,
-            data
+        const missing =
+          missingConfig();
+
+        if (missing.length) {
+          return json(
+            {
+              success: false,
+              error:
+                "Worker não configurado.",
+              missing
+            },
+            500
+          );
+        }
+
+        const state =
+          await createOAuthState();
+
+        const discordUrl =
+          new URL(
+            "https://discord.com/oauth2/authorize"
           );
 
+        discordUrl.searchParams.set(
+          "client_id",
+          DISCORD_CLIENT_ID
+        );
+
+        discordUrl.searchParams.set(
+          "redirect_uri",
+          DISCORD_REDIRECT_URI
+        );
+
+        discordUrl.searchParams.set(
+          "response_type",
+          "code"
+        );
+
+        discordUrl.searchParams.set(
+          "scope",
+          "identify"
+        );
+
+        discordUrl.searchParams.set(
+          "state",
+          state
+        );
+
+        return redirect(
+          discordUrl.toString()
+        );
+      }
+
+      /*
+       * =========================================================
+       * DISCORD CALLBACK
+       * =========================================================
+       */
+
+      if (
+        url.pathname ===
+        "/api/auth/discord/callback"
+      ) {
+        const code =
+          url.searchParams.get(
+            "code"
+          );
+
+        const state =
+          url.searchParams.get(
+            "state"
+          );
+
+        const oauthError =
+          url.searchParams.get(
+            "error"
+          );
+
+        if (oauthError) {
           return redirect(
             `${DASHBOARD_URL}/#/login?error=${encodeURIComponent(
-              data?.error ||
-              "oauth_negado"
+              oauthError
             )}`
           );
         }
 
-        const session =
-          await createSession(
-            data.data
-          );
-
-        const cookie = [
-          `rd4x_session=${encodeURIComponent(session)}`,
-          "HttpOnly",
-          "Secure",
-          "SameSite=Lax",
-          "Path=/",
-          `Max-Age=${SESSION_MAX_AGE}`
-        ].join("; ");
-
-        return redirect(
-          `${DASHBOARD_URL}/#/key`,
-          {
-            "Set-Cookie": cookie
-          }
-        );
-      } catch (error) {
-        console.error(
-          "[WORKER OAUTH CALLBACK]",
-          error
-        );
-
-        return redirect(
-          `${DASHBOARD_URL}/#/login?error=oauth_erro`
-        );
-      }
-    }
-
-    // =========================================================
-    // USUÁRIO ATUAL
-    // =========================================================
-
-    if (
-      url.pathname ===
-        "/api/auth/discord/me" &&
-      request.method === "GET"
-    ) {
-      const session =
-        await getSession(request);
-
-      if (!session) {
-        return json(
-          {
-            success: false,
-            authenticated: false,
-            error:
-              "Sessão não autenticada"
-          },
-          401
-        );
-      }
-
-      const user = {
-        id:
-          session.sub,
-
-        discordId:
-          session.sub,
-
-        username:
-          session.username,
-
-        globalName:
-          session.globalName,
-
-        avatar:
-          session.avatar,
-
-        role:
-          session.role,
-
-        isOwner:
-          Boolean(session.isOwner),
-
-        isAdmin:
-          true
-      };
-
-      return json({
-        success: true,
-        authenticated: true,
-        user,
-        data: user
-      });
-    }
-
-    // =========================================================
-    // LOGOUT
-    // =========================================================
-
-    if (
-      url.pathname ===
-        "/api/auth/discord/logout" &&
-      request.method === "POST"
-    ) {
-      return json(
-        {
-          success: true
-        },
-        200,
-        {
-          "Set-Cookie": [
-            "rd4x_session=",
-            "HttpOnly",
-            "Secure",
-            "SameSite=Lax",
-            "Path=/",
-            "Max-Age=0"
-          ].join("; ")
-        }
-      );
-    }
-
-    // =========================================================
-    // VALIDAR KEY RD4X
-    // =========================================================
-
-    if (
-      url.pathname ===
-        "/api/v2/keys/validate" &&
-      request.method === "POST"
-    ) {
-      const session =
-        await getSession(request);
-
-      if (!session) {
-        return json(
-          {
-            success: false,
-            valid: false,
-            reason:
-              "sessao_nao_autenticada"
-          },
-          401
-        );
-      }
-
-      if (!API_URL || !API_KEY) {
-        return json(
-          {
-            success: false,
-            valid: false,
-            reason:
-              "api_nao_configurada"
-          },
-          500
-        );
-      }
-
-      let body;
-
-      try {
-        body =
-          await request.json();
-      } catch {
-        return json(
-          {
-            success: false,
-            valid: false,
-            reason:
-              "json_invalido"
-          },
-          400
-        );
-      }
-
-      const key =
-        String(
-          body?.key || ""
-        ).trim();
-
-      const hwid =
-        body?.hwid
-          ? String(
-              body.hwid
-            ).trim()
-          : null;
-
-      if (!key) {
-        return json({
-          success: true,
-          valid: false,
-          reason:
-            "key_ausente"
-        });
-      }
-
-      try {
-        const response =
-          await fetch(
-            `${API_URL}/api/v2/keys/validate`,
-            {
-              method: "POST",
-
-              headers: {
-                "Authorization":
-                  `Bearer ${API_KEY}`,
-
-                "Content-Type":
-                  "application/json",
-
-                "Accept":
-                  "application/json",
-
-                "Cache-Control":
-                  "no-cache"
-              },
-
-              body: JSON.stringify({
-                key,
-
-                discordId:
-                  String(session.sub),
-
-                hwid
-              })
-            }
-          );
-
-        const text =
-          await response.text();
-
-        let data = null;
-
-        try {
-          data =
-            JSON.parse(text);
-        } catch {
-          data = null;
-        }
-
-        if (!data) {
+        if (!code) {
           return json(
             {
               success: false,
-              valid: false,
-              reason:
-                "resposta_api_invalida"
+              error:
+                "Código OAuth ausente."
+            },
+            400
+          );
+        }
+
+        const validState =
+          await verifyOAuthState(
+            state
+          );
+
+        if (!validState) {
+          return json(
+            {
+              success: false,
+              error:
+                "Estado OAuth inválido ou expirado."
+            },
+            400
+          );
+        }
+
+        if (!API_URL) {
+          return json(
+            {
+              success: false,
+              error:
+                "RD4X_API_URL não configurada."
+            },
+            500
+          );
+        }
+
+        if (!API_KEY) {
+          return json(
+            {
+              success: false,
+              error:
+                "DASHBOARD_API_KEY não configurada."
+            },
+            500
+          );
+        }
+
+        try {
+          const exchangeResponse =
+            await apiFetch(
+              "/api/auth/discord/exchange",
+              {
+                method: "POST",
+
+                headers: {
+                  "Content-Type":
+                    "application/json"
+                },
+
+                body:
+                  JSON.stringify({
+                    code,
+                    redirectUri:
+                      DISCORD_REDIRECT_URI
+                  })
+              }
+            );
+
+          const text =
+            await exchangeResponse.text();
+
+          let data = null;
+
+          try {
+            data =
+              text
+                ? JSON.parse(text)
+                : null;
+          } catch {
+            data = null;
+          }
+
+          if (
+            !exchangeResponse.ok
+          ) {
+            return json(
+              {
+                success: false,
+                error:
+                  data?.error ||
+                  data?.message ||
+                  "Falha ao autenticar com Discord.",
+                status:
+                  exchangeResponse.status
+              },
+              exchangeResponse.status
+            );
+          }
+
+          const user =
+            data?.data ||
+            data?.user ||
+            data;
+
+          if (
+            !user ||
+            !user.id
+          ) {
+            return json(
+              {
+                success: false,
+                error:
+                  "A API não retornou um usuário válido.",
+                response:
+                  data
+              },
+              502
+            );
+          }
+
+          const sessionToken =
+            await createSession(
+              user
+            );
+
+          return redirect(
+            `${DASHBOARD_URL}/#/key`,
+            {
+              "Set-Cookie":
+                setSessionCookie(
+                  sessionToken
+                )
+            }
+          );
+        } catch (error) {
+          return json(
+            {
+              success: false,
+              error:
+                "Erro ao comunicar com a API RD4X.",
+              message:
+                error?.message ||
+                String(error)
             },
             502
           );
         }
-
-        return json(
-          data,
-          response.status
-        );
-      } catch (error) {
-        console.error(
-          "[WORKER KEY VALIDATE]",
-          error
-        );
-
-        return json(
-          {
-            success: false,
-            valid: false,
-            reason:
-              "erro_api"
-          },
-          502
-        );
       }
-    }
 
-    // =========================================================
-    // ROTAS RD4X
-    // =========================================================
+      /*
+       * =========================================================
+       * DISCORD ME
+       * =========================================================
+       */
 
-    const routes = {
-      "/api/rd4x/overview":
-        "/api/dashboard/overview",
+      if (
+        url.pathname ===
+        "/api/auth/discord/me"
+      ) {
+        const session =
+          await getSession(request);
 
-      "/api/rd4x/admins":
-        "/api/dashboard/admins",
+        if (!session) {
+          return json(
+            {
+              success: false,
+              authenticated: false,
+              user: null
+            },
+            401
+          );
+        }
 
-      "/api/rd4x/users":
-        "/api/dashboard/users",
+        return json({
+          success: true,
 
-      "/api/rd4x/tickets":
-        "/api/dashboard/tickets",
+          authenticated: true,
 
-      "/api/rd4x/releases":
-        "/api/dashboard/releases",
+          user: {
+            id:
+              session.sub,
 
-      "/api/rd4x/audit":
-        "/api/dashboard/audit",
+            discordId:
+              session.sub,
 
-      "/api/rd4x/incidents":
-        "/api/dashboard/incidents",
+            username:
+              session.username,
 
-      "/api/rd4x/transcripts":
-        "/api/dashboard/transcripts",
+            globalName:
+              session.globalName,
 
-      "/api/rd4x/release":
-        "/api/dashboard/release",
+            avatar:
+              session.avatar,
 
-      "/api/rd4x/reset-hwid":
-        "/api/dashboard/reset-hwid",
+            role:
+              session.role,
 
-      "/api/rd4x/revoke":
-        "/api/dashboard/revoke",
+            isOwner:
+              Boolean(
+                session.isOwner
+              ),
 
-      "/api/rd4x/blacklist":
-        "/api/dashboard/blacklist",
+            isAdmin: true
+          },
 
-      "/api/rd4x/unblacklist":
-        "/api/dashboard/unblacklist",
+          data: {
+            id:
+              session.sub,
 
-      "/api/dashboard/overview":
-        "/api/dashboard/overview",
+            discordId:
+              session.sub,
 
-      "/api/dashboard/admins":
-        "/api/dashboard/admins",
+            username:
+              session.username,
 
-      "/api/dashboard/users":
-        "/api/dashboard/users",
+            globalName:
+              session.globalName,
 
-      "/api/dashboard/tickets":
-        "/api/dashboard/tickets",
+            avatar:
+              session.avatar,
 
-      "/api/dashboard/releases":
-        "/api/dashboard/releases",
+            role:
+              session.role,
 
-      "/api/dashboard/audit":
-        "/api/dashboard/audit",
+            isOwner:
+              Boolean(
+                session.isOwner
+              ),
 
-      "/api/dashboard/incidents":
-        "/api/dashboard/incidents",
+            isAdmin: true
+          }
+        });
+      }
 
-      "/api/dashboard/transcripts":
-        "/api/dashboard/transcripts",
+      /*
+       * =========================================================
+       * LOGOUT
+       * =========================================================
+       */
 
-      "/api/dashboard/release":
-        "/api/dashboard/release",
-
-      "/api/dashboard/reset-hwid":
-        "/api/dashboard/reset-hwid",
-
-      "/api/dashboard/revoke":
-        "/api/dashboard/revoke",
-
-      "/api/dashboard/blacklist":
-        "/api/dashboard/blacklist",
-
-      "/api/dashboard/unblacklist":
-        "/api/dashboard/unblacklist"
-    };
-
-    const targetPath =
-      routes[url.pathname];
-
-    if (targetPath) {
-      const session =
-        await getSession(request);
-
-      if (!session) {
+      if (
+        url.pathname ===
+        "/api/auth/discord/logout"
+      ) {
         return json(
           {
-            success: false,
-            error:
-              "Sessão Discord não autenticada"
+            success: true
           },
-          401
+          200,
+          {
+            "Set-Cookie":
+              clearSessionCookie()
+          }
         );
       }
 
-      if (!API_URL || !API_KEY) {
-        return json(
-          {
-            success: false,
-            error:
-              "API RD4X não configurada."
-          },
-          500
-        );
-      }
+      /*
+       * =========================================================
+       * KEY VALIDATION
+       * =========================================================
+       */
 
-      try {
-        const headers =
-          new Headers();
+      if (
+        url.pathname ===
+        "/api/v2/keys/validate"
+      ) {
+        const session =
+          await getSession(request);
 
-        headers.set(
-          "Authorization",
-          `Bearer ${API_KEY}`
-        );
+        if (!session) {
+          return json(
+            {
+              success: false,
+              authenticated: false,
+              error:
+                "Sessão Discord inválida ou expirada."
+            },
+            401
+          );
+        }
 
-        headers.set(
-          "Accept",
-          "application/json"
-        );
+        if (!API_URL) {
+          return json(
+            {
+              success: false,
+              error:
+                "RD4X_API_URL não configurada."
+            },
+            500
+          );
+        }
 
-        headers.set(
-          "Cache-Control",
-          "no-cache"
-        );
-
-        headers.set(
-          "X-Dashboard-User-ID",
-          String(session.sub)
-        );
-
-        headers.set(
-          "X-Dashboard-Role",
-          String(
-            session.role ||
-              "Administrador"
-          )
-        );
-
-        headers.set(
-          "X-Dashboard-Owner",
-          session.isOwner
-            ? "true"
-            : "false"
-        );
+        if (!API_KEY) {
+          return json(
+            {
+              success: false,
+              error:
+                "DASHBOARD_API_KEY não configurada."
+            },
+            500
+          );
+        }
 
         let body;
 
-        if (
-          request.method !== "GET" &&
-          request.method !== "HEAD"
-        ) {
+        try {
           body =
-            await request.text();
-
-          if (body) {
-            headers.set(
-              "Content-Type",
-              request.headers.get(
-                "Content-Type"
-              ) ||
-                "application/json"
-            );
-          }
+            await request.json();
+        } catch {
+          return json(
+            {
+              success: false,
+              error:
+                "JSON inválido."
+            },
+            400
+          );
         }
 
-        const apiResponse =
-          await fetch(
-            `${API_URL}${targetPath}${url.search}`,
+        const key =
+          String(
+            body?.key || ""
+          ).trim();
+
+        const hwid =
+          String(
+            body?.hwid || ""
+          ).trim();
+
+        if (!key) {
+          return json(
             {
-              method:
-                request.method,
-
-              headers,
-
-              body
-            }
+              success: false,
+              valid: false,
+              error:
+                "Key não informada."
+            },
+            400
           );
+        }
 
-        const responseBody =
-          await apiResponse.text();
+        try {
+          const response =
+            await apiFetch(
+              "/api/v2/keys/validate",
+              {
+                method: "POST",
 
-        return new Response(
-          responseBody,
-          {
-            status:
-              apiResponse.status,
+                headers: {
+                  "Content-Type":
+                    "application/json"
+                },
 
-            headers: {
-              "Content-Type":
-                apiResponse.headers.get(
-                  "Content-Type"
-                ) ||
-                "application/json; charset=utf-8",
+                body:
+                  JSON.stringify({
+                    key,
 
-              "Cache-Control":
-                "no-store, no-cache, must-revalidate",
+                    discordId:
+                      session.sub,
 
-              "Pragma":
-                "no-cache",
+                    hwid
+                  })
+              }
+            );
 
-              "Expires":
-                "0"
-            }
+          const responseText =
+            await response.text();
+
+          let data;
+
+          try {
+            data =
+              responseText
+                ? JSON.parse(
+                    responseText
+                  )
+                : {};
+          } catch {
+            data = {
+              success:
+                response.ok,
+              raw:
+                responseText
+            };
           }
-        );
-      } catch (error) {
-        console.error(
-          "[WORKER API]",
-          error
-        );
 
-        return json(
-          {
-            success: false,
-            error:
-              "Erro ao conectar com a API RD4X"
-          },
-          502
-        );
+          return json(
+            data,
+            response.status
+          );
+        } catch (error) {
+          return json(
+            {
+              success: false,
+              valid: false,
+              error:
+                "Não foi possível validar a Key.",
+              message:
+                error?.message ||
+                String(error)
+            },
+            502
+          );
+        }
       }
-    }
 
-    // =========================================================
-    // ASSETS
-    // =========================================================
+      /*
+       * =========================================================
+       * DASHBOARD API
+       *
+       * Aceita automaticamente:
+       *
+       * /api/rd4x/*
+       * /api/dashboard/*
+       *
+       * Inclusive subrotas:
+       *
+       * /users/:id
+       * /tickets/:id
+       * /incidents/:id
+       * /transcripts/:id
+       * etc.
+       * =========================================================
+       */
 
-    if (env.ASSETS) {
-      const response =
-        await env.ASSETS.fetch(request);
+      const dashboardTarget =
+        getDashboardTarget(
+          url.pathname
+        );
 
-      const contentType =
-        response.headers.get(
-          "Content-Type"
-        ) || "";
+      if (dashboardTarget) {
+        const session =
+          await getSession(request);
+
+        if (!session) {
+          return json(
+            {
+              success: false,
+              authenticated: false,
+              error:
+                "Sessão Discord inválida ou expirada."
+            },
+            401
+          );
+        }
+
+        if (!API_URL) {
+          return json(
+            {
+              success: false,
+              error:
+                "RD4X_API_URL não configurada."
+            },
+            500
+          );
+        }
+
+        if (!API_KEY) {
+          return json(
+            {
+              success: false,
+              error:
+                "DASHBOARD_API_KEY não configurada."
+            },
+            500
+          );
+        }
+
+        try {
+          return await proxyDashboard(
+            request,
+            env,
+            dashboardTarget,
+            session
+          );
+        } catch (error) {
+          return json(
+            {
+              success: false,
+              error:
+                "Erro ao comunicar com a API RD4X.",
+              message:
+                error?.message ||
+                String(error)
+            },
+            502
+          );
+        }
+      }
+
+      /*
+       * =========================================================
+       * STATIC ASSETS
+       * =========================================================
+       */
 
       if (
-        contentType.includes("text/html") ||
-        contentType.includes("javascript") ||
-        contentType.includes("text/css")
+        env.ASSETS &&
+        typeof env.ASSETS.fetch ===
+          "function"
       ) {
-        const headers =
-          new Headers(
-            response.headers
+        const assetResponse =
+          await env.ASSETS.fetch(
+            request
           );
 
-        headers.set(
-          "Cache-Control",
-          "no-store, no-cache, must-revalidate"
-        );
+        const headers =
+          new Headers(
+            assetResponse.headers
+          );
 
-        headers.set(
-          "Pragma",
-          "no-cache"
-        );
+        const contentType =
+          headers.get(
+            "Content-Type"
+          ) || "";
 
-        headers.set(
-          "Expires",
-          "0"
-        );
+        if (
+          contentType.includes(
+            "text/html"
+          ) ||
+          contentType.includes(
+            "javascript"
+          ) ||
+          contentType.includes(
+            "text/css"
+          )
+        ) {
+          headers.set(
+            "Cache-Control",
+            "no-store, no-cache, must-revalidate"
+          );
+
+          headers.set(
+            "Pragma",
+            "no-cache"
+          );
+
+          headers.set(
+            "Expires",
+            "0"
+          );
+        }
 
         return new Response(
-          response.body,
+          assetResponse.body,
           {
             status:
-              response.status,
+              assetResponse.status,
 
             statusText:
-              response.statusText,
+              assetResponse.statusText,
 
             headers
           }
         );
       }
 
-      return response;
+      /*
+       * =========================================================
+       * ASSETS NÃO CONFIGURADO
+       * =========================================================
+       */
+
+      return json(
+        {
+          success: false,
+          error:
+            "Binding ASSETS não foi encontrado.",
+          message:
+            "O Worker está funcionando, mas os arquivos do Dashboard não estão vinculados a este Worker.",
+          hint:
+            "Configure o Static Assets/Assets binding no Cloudflare."
+        },
+        500
+      );
+    } catch (error) {
+      return json(
+        {
+          success: false,
+          error:
+            "Erro interno do Worker.",
+          message:
+            error?.message ||
+            String(error)
+        },
+        500
+      );
     }
-
-    return new Response(
-      "RD4X Dashboard online, mas o binding ASSETS não foi encontrado.",
-      {
-        status: 500,
-
-        headers: {
-          "Content-Type":
-            "text/plain; charset=utf-8"
-        }
-      }
-    );
   }
 };
