@@ -36,31 +36,47 @@ function getConfig(env) {
 ========================================================= */
 
 function json(data, status = 200, headers = {}) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      'Content-Type': 'application/json; charset=utf-8',
-      ...headers
+  return new Response(
+    JSON.stringify(data),
+    {
+      status,
+      headers: {
+        'Content-Type':
+          'application/json; charset=utf-8',
+
+        'Cache-Control':
+          'no-store, no-cache, must-revalidate',
+
+        ...headers
+      }
     }
-  });
+  );
 }
 
 function addCors(response, request) {
-  const origin = request.headers.get('Origin');
+  const origin =
+    request.headers.get('Origin');
 
-  const headers = new Headers(response.headers);
+  const headers =
+    new Headers(response.headers);
 
   if (
     origin &&
     (
       origin === DASHBOARD_URL ||
-      origin.includes('.workers.dev')
+      origin.endsWith('.workers.dev')
     )
   ) {
-    headers.set('Access-Control-Allow-Origin', origin);
+    headers.set(
+      'Access-Control-Allow-Origin',
+      origin
+    );
   }
 
-  headers.set('Access-Control-Allow-Credentials', 'true');
+  headers.set(
+    'Access-Control-Allow-Credentials',
+    'true'
+  );
 
   headers.set(
     'Access-Control-Allow-Headers',
@@ -72,11 +88,23 @@ function addCors(response, request) {
     'GET, POST, PUT, PATCH, DELETE, OPTIONS'
   );
 
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers
-  });
+  headers.set(
+    'Vary',
+    'Origin'
+  );
+
+  return new Response(
+    response.body,
+    {
+      status:
+        response.status,
+
+      statusText:
+        response.statusText,
+
+      headers
+    }
+  );
 }
 
 /* =========================================================
@@ -84,19 +112,33 @@ function addCors(response, request) {
 ========================================================= */
 
 function parseCookies(request) {
-  const header = request.headers.get('Cookie') || '';
+  const header =
+    request.headers.get('Cookie') || '';
 
   const cookies = {};
 
-  for (const part of header.split(';')) {
-    const index = part.indexOf('=');
+  for (
+    const part of header.split(';')
+  ) {
+    const index =
+      part.indexOf('=');
 
-    if (index === -1) continue;
+    if (index === -1) {
+      continue;
+    }
 
-    const name = part.slice(0, index).trim();
-    const value = part.slice(index + 1).trim();
+    const name =
+      part.slice(0, index).trim();
 
-    cookies[name] = decodeURIComponent(value);
+    const value =
+      part.slice(index + 1).trim();
+
+    try {
+      cookies[name] =
+        decodeURIComponent(value);
+    } catch {
+      cookies[name] = value;
+    }
   }
 
   return cookies;
@@ -118,7 +160,9 @@ function makeCookie(
   ];
 
   if (options.sameSite) {
-    parts[parts.length - 1] = `SameSite=${options.sameSite}`;
+    parts[
+      parts.length - 1
+    ] = `SameSite=${options.sameSite}`;
   }
 
   return parts.join('; ');
@@ -159,76 +203,110 @@ function base64UrlEncode(bytes) {
 }
 
 function base64UrlDecode(value) {
-  const normalized = value
-    .replace(/-/g, '+')
-    .replace(/_/g, '/');
+  const normalized =
+    value
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
 
   const padding =
     normalized.length % 4 === 0
       ? ''
-      : '='.repeat(4 - (normalized.length % 4));
+      : '='.repeat(
+          4 - (normalized.length % 4)
+        );
 
-  const binary = atob(normalized + padding);
+  const binary =
+    atob(
+      normalized + padding
+    );
 
-  const bytes = new Uint8Array(binary.length);
+  const bytes =
+    new Uint8Array(
+      binary.length
+    );
 
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
+  for (
+    let i = 0;
+    i < binary.length;
+    i++
+  ) {
+    bytes[i] =
+      binary.charCodeAt(i);
   }
 
   return bytes;
 }
 
-async function createSignedSession(payload, secret) {
-  const data = base64UrlEncode(
-    textEncoder().encode(
-      JSON.stringify(payload)
-    )
+async function createSignedSession(
+  payload,
+  secret
+) {
+  const data =
+    base64UrlEncode(
+      textEncoder().encode(
+        JSON.stringify(payload)
+      )
+    );
+
+  const key =
+    await importHmacKey(secret);
+
+  const signature =
+    await crypto.subtle.sign(
+      'HMAC',
+      key,
+      textEncoder().encode(data)
+    );
+
+  return (
+    `${data}.${base64UrlEncode(
+      new Uint8Array(signature)
+    )}`
   );
-
-  const key = await importHmacKey(secret);
-
-  const signature = await crypto.subtle.sign(
-    'HMAC',
-    key,
-    textEncoder().encode(data)
-  );
-
-  return `${data}.${base64UrlEncode(new Uint8Array(signature))}`;
 }
 
-async function verifySignedSession(token, secret) {
+async function verifySignedSession(
+  token,
+  secret
+) {
   try {
     if (!token || !secret) {
       return null;
     }
 
-    const parts = token.split('.');
+    const parts =
+      token.split('.');
 
     if (parts.length !== 2) {
       return null;
     }
 
-    const [data, signature] = parts;
+    const [
+      data,
+      signature
+    ] = parts;
 
-    const key = await importHmacKey(secret);
+    const key =
+      await importHmacKey(secret);
 
-    const valid = await crypto.subtle.verify(
-      'HMAC',
-      key,
-      base64UrlDecode(signature),
-      textEncoder().encode(data)
-    );
+    const valid =
+      await crypto.subtle.verify(
+        'HMAC',
+        key,
+        base64UrlDecode(signature),
+        textEncoder().encode(data)
+      );
 
     if (!valid) {
       return null;
     }
 
-    const payload = JSON.parse(
-      new TextDecoder().decode(
-        base64UrlDecode(data)
-      )
-    );
+    const payload =
+      JSON.parse(
+        new TextDecoder().decode(
+          base64UrlDecode(data)
+        )
+      );
 
     if (
       payload.exp &&
@@ -238,6 +316,7 @@ async function verifySignedSession(token, secret) {
     }
 
     return payload;
+
   } catch {
     return null;
   }
@@ -247,16 +326,22 @@ async function verifySignedSession(token, secret) {
    SESSION
 ========================================================= */
 
-async function getSession(request, env) {
-  const config = getConfig(env);
+async function getSession(
+  request,
+  env
+) {
+  const config =
+    getConfig(env);
 
   if (!config.apiKey) {
     return null;
   }
 
-  const cookies = parseCookies(request);
+  const cookies =
+    parseCookies(request);
 
-  const token = cookies[SESSION_COOKIE];
+  const token =
+    cookies[SESSION_COOKIE];
 
   if (!token) {
     return null;
@@ -272,13 +357,17 @@ async function createSessionCookie(
   user,
   env
 ) {
-  const config = getConfig(env);
+  const config =
+    getConfig(env);
 
-  const now = Date.now();
+  const now =
+    Date.now();
 
   const payload = {
     discordId: String(
-      user.discordId || user.id || ''
+      user.discordId ||
+      user.id ||
+      ''
     ),
 
     username:
@@ -293,7 +382,8 @@ async function createSessionCookie(
     isOwner:
       Boolean(user.isOwner),
 
-    iat: now,
+    iat:
+      now,
 
     exp:
       now +
@@ -314,11 +404,15 @@ async function createSessionCookie(
 }
 
 /* =========================================================
-   DISCORD OAUTH
+   DISCORD LOGIN
 ========================================================= */
 
-async function discordLogin(request, env) {
-  const config = getConfig(env);
+async function discordLogin(
+  request,
+  env
+) {
+  const config =
+    getConfig(env);
 
   if (
     !config.discordClientId ||
@@ -326,51 +420,76 @@ async function discordLogin(request, env) {
   ) {
     return json({
       success: false,
-      error: 'Discord OAuth não configurado'
+      error:
+        'Discord OAuth não configurado'
     }, 503);
   }
 
-  const stateBytes = crypto.getRandomValues(
-    new Uint8Array(32)
-  );
+  const stateBytes =
+    crypto.getRandomValues(
+      new Uint8Array(32)
+    );
 
   const state =
-    base64UrlEncode(stateBytes);
+    base64UrlEncode(
+      stateBytes
+    );
 
-  const cookie = makeCookie(
-    OAUTH_STATE_COOKIE,
-    state,
-    OAUTH_STATE_MAX_AGE
-  );
+  const cookie =
+    makeCookie(
+      OAUTH_STATE_COOKIE,
+      state,
+      OAUTH_STATE_MAX_AGE
+    );
 
-  const params = new URLSearchParams({
-    client_id: config.discordClientId,
-    response_type: 'code',
-    redirect_uri: config.discordRedirectUri,
-    scope: 'identify',
-    state
-  });
+  const params =
+    new URLSearchParams({
+      client_id:
+        config.discordClientId,
+
+      response_type:
+        'code',
+
+      redirect_uri:
+        config.discordRedirectUri,
+
+      scope:
+        'identify',
+
+      state
+    });
 
   const url =
     `https://discord.com/oauth2/authorize?${params.toString()}`;
 
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: url,
-      'Set-Cookie': cookie
+  return new Response(
+    null,
+    {
+      status: 302,
+
+      headers: {
+        Location: url,
+
+        'Set-Cookie':
+          cookie
+      }
     }
-  });
+  );
 }
 
 /* =========================================================
    DISCORD CALLBACK
 ========================================================= */
 
-async function discordCallback(request, env) {
-  const config = getConfig(env);
+async function discordCallback(
+  request,
+  env
+) {
+  const config =
+    getConfig(env);
 
-  const url = new URL(request.url);
+  const url =
+    new URL(request.url);
 
   const code =
     url.searchParams.get('code');
@@ -381,7 +500,9 @@ async function discordCallback(request, env) {
   if (!code) {
     return new Response(
       'Código OAuth ausente.',
-      { status: 400 }
+      {
+        status: 400
+      }
     );
   }
 
@@ -398,7 +519,9 @@ async function discordCallback(request, env) {
   ) {
     return new Response(
       'Estado OAuth inválido.',
-      { status: 400 }
+      {
+        status: 400
+      }
     );
   }
 
@@ -410,7 +533,8 @@ async function discordCallback(request, env) {
           method: 'POST',
 
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type':
+              'application/json',
 
             'Authorization':
               `Bearer ${config.apiKey}`,
@@ -419,12 +543,13 @@ async function discordCallback(request, env) {
               'rd4x-cloudflare-worker'
           },
 
-          body: JSON.stringify({
-            code,
+          body:
+            JSON.stringify({
+              code,
 
-            redirectUri:
-              config.discordRedirectUri
-          })
+              redirectUri:
+                config.discordRedirectUri
+            })
         }
       );
 
@@ -434,7 +559,8 @@ async function discordCallback(request, env) {
     let data = null;
 
     try {
-      data = JSON.parse(raw);
+      data =
+        JSON.parse(raw);
     } catch {
       data = null;
     }
@@ -451,7 +577,9 @@ async function discordCallback(request, env) {
 
       return new Response(
         'Falha ao autenticar com Discord.',
-        { status: 502 }
+        {
+          status: 502
+        }
       );
     }
 
@@ -466,7 +594,8 @@ async function discordCallback(request, env) {
         env
       );
 
-    const headers = new Headers();
+    const headers =
+      new Headers();
 
     headers.set(
       'Location',
@@ -487,10 +616,13 @@ async function discordCallback(request, env) {
       )
     );
 
-    return new Response(null, {
-      status: 302,
-      headers
-    });
+    return new Response(
+      null,
+      {
+        status: 302,
+        headers
+      }
+    );
 
   } catch (error) {
     console.error(
@@ -500,7 +632,9 @@ async function discordCallback(request, env) {
 
     return new Response(
       'Erro interno durante autenticação.',
-      { status: 500 }
+      {
+        status: 500
+      }
     );
   }
 }
@@ -509,7 +643,10 @@ async function discordCallback(request, env) {
    DISCORD ME
 ========================================================= */
 
-async function discordMe(request, env) {
+async function discordMe(
+  request,
+  env
+) {
   const session =
     await getSession(
       request,
@@ -526,11 +663,20 @@ async function discordMe(request, env) {
     authenticated: true,
 
     user: {
-      id: session.discordId,
-      discordId: session.discordId,
-      username: session.username,
-      role: session.role,
-      isOwner: session.isOwner
+      id:
+        session.discordId,
+
+      discordId:
+        session.discordId,
+
+      username:
+        session.username,
+
+      role:
+        session.role,
+
+      isOwner:
+        session.isOwner
     }
   });
 }
@@ -546,9 +692,13 @@ async function discordLogout() {
     }),
     {
       status: 200,
+
       headers: {
         'Content-Type':
           'application/json; charset=utf-8',
+
+        'Cache-Control':
+          'no-store',
 
         'Set-Cookie':
           makeCookie(
@@ -572,19 +722,27 @@ async function workerStatus(env) {
   const missing = [];
 
   if (!config.apiUrl) {
-    missing.push('RD4X_API_URL');
+    missing.push(
+      'RD4X_API_URL'
+    );
   }
 
   if (!config.apiKey) {
-    missing.push('DASHBOARD_API_KEY');
+    missing.push(
+      'DASHBOARD_API_KEY'
+    );
   }
 
   if (!config.discordClientId) {
-    missing.push('DISCORD_CLIENT_ID');
+    missing.push(
+      'DISCORD_CLIENT_ID'
+    );
   }
 
   if (!config.discordClientSecret) {
-    missing.push('DISCORD_CLIENT_SECRET');
+    missing.push(
+      'DISCORD_CLIENT_SECRET'
+    );
   }
 
   if (!config.discordRedirectUri) {
@@ -596,7 +754,8 @@ async function workerStatus(env) {
   return json({
     success: true,
 
-    worker: 'online',
+    worker:
+      'online',
 
     apiConfigured:
       Boolean(config.apiUrl),
@@ -611,7 +770,9 @@ async function workerStatus(env) {
       ),
 
     redirectConfigured:
-      Boolean(config.discordRedirectUri),
+      Boolean(
+        config.discordRedirectUri
+      ),
 
     missing
   });
@@ -619,11 +780,31 @@ async function workerStatus(env) {
 
 /* =========================================================
    KEY VALIDATION
-   ========================================================= */
+========================================================= */
 
-async function validateKey(request, env) {
+async function validateKey(
+  request,
+  env
+) {
   const config =
     getConfig(env);
+
+  /*
+   * IMPORTANTE:
+   * Este endpoint agora devolve informações
+   * suficientes para sabermos exatamente
+   * onde a comunicação está parando.
+   */
+
+  const diagnostic = {
+    worker: true,
+    route: '/api/v2/keys/validate',
+    method: request.method,
+    session: false,
+    keyReceived: false,
+    botRequestStarted: false,
+    botResponseReceived: false
+  };
 
   console.log(
     '[KEY VALIDATE WORKER] 1 - Rota recebida'
@@ -646,10 +827,18 @@ async function validateKey(request, env) {
     return json({
       success: false,
       valid: false,
+
       reason:
-        'discord_session_missing'
+        'discord_session_missing',
+
+      diagnostic: {
+        ...diagnostic,
+        session: false
+      }
     }, 401);
   }
+
+  diagnostic.session = true;
 
   console.log(
     '[KEY VALIDATE WORKER] 3 - API URL:',
@@ -669,8 +858,11 @@ async function validateKey(request, env) {
     return json({
       success: false,
       valid: false,
+
       reason:
-        'api_url_not_configured'
+        'api_url_not_configured',
+
+      diagnostic
     }, 503);
   }
 
@@ -678,8 +870,11 @@ async function validateKey(request, env) {
     return json({
       success: false,
       valid: false,
+
       reason:
-        'dashboard_api_key_not_configured'
+        'dashboard_api_key_not_configured',
+
+      diagnostic
     }, 503);
   }
 
@@ -702,8 +897,11 @@ async function validateKey(request, env) {
     return json({
       success: false,
       valid: false,
+
       reason:
-        'json_invalido'
+        'json_invalido',
+
+      diagnostic
     }, 400);
   }
 
@@ -717,6 +915,9 @@ async function validateKey(request, env) {
       ? String(body.hwid).trim()
       : null;
 
+  diagnostic.keyReceived =
+    Boolean(key);
+
   console.log(
     '[KEY VALIDATE WORKER] 6 - Key recebida:',
     key
@@ -728,8 +929,11 @@ async function validateKey(request, env) {
     return json({
       success: true,
       valid: false,
+
       reason:
-        'key_ausente'
+        'key_ausente',
+
+      diagnostic
     });
   }
 
@@ -741,49 +945,79 @@ async function validateKey(request, env) {
     targetUrl
   );
 
+  diagnostic.botRequestStarted = true;
+
   try {
-    const response =
-      await fetch(
-        targetUrl,
-        {
-          method: 'POST',
+    const controller =
+      new AbortController();
 
-          headers: {
-            'Content-Type':
-              'application/json',
-
-            'Authorization':
-              `Bearer ${config.apiKey}`,
-
-            'X-Dashboard-User-ID':
-              String(session.discordId),
-
-            'X-Dashboard-User-Role':
-              String(
-                session.role || ''
-              ),
-
-            'X-Dashboard-User-Owner':
-              session.isOwner
-                ? 'true'
-                : 'false',
-
-            'X-Dashboard-Request':
-              'rd4x-key-validation'
-          },
-
-          body: JSON.stringify({
-            key,
-
-            hwid,
-
-            discordId:
-              String(
-                session.discordId
-              )
-          })
-        }
+    const timeout =
+      setTimeout(
+        () => controller.abort(),
+        10000
       );
+
+    let response;
+
+    try {
+      response =
+        await fetch(
+          targetUrl,
+          {
+            method: 'POST',
+
+            headers: {
+              'Content-Type':
+                'application/json',
+
+              'Accept':
+                'application/json',
+
+              'Authorization':
+                `Bearer ${config.apiKey}`,
+
+              'X-Dashboard-User-ID':
+                String(
+                  session.discordId
+                ),
+
+              'X-Dashboard-User-Role':
+                String(
+                  session.role || ''
+                ),
+
+              'X-Dashboard-User-Owner':
+                session.isOwner
+                  ? 'true'
+                  : 'false',
+
+              'X-Dashboard-Request':
+                'rd4x-key-validation'
+            },
+
+            body:
+              JSON.stringify({
+                key,
+
+                hwid,
+
+                discordId:
+                  String(
+                    session.discordId
+                  )
+              }),
+
+            signal:
+              controller.signal
+          }
+        );
+
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    diagnostic.botResponseReceived =
+      true;
 
     console.log(
       '[KEY VALIDATE WORKER] 8 - Bot respondeu:',
@@ -827,10 +1061,24 @@ async function validateKey(request, env) {
         })
       );
 
-      return json(
-        data,
-        response.status
-      );
+      /*
+       * Se o Bot respondeu, devolvemos
+       * o resultado original junto do
+       * diagnóstico.
+       */
+      return json({
+        ...data,
+
+        diagnostic: {
+          ...diagnostic,
+
+          botStatus:
+            response.status,
+
+          botStatusText:
+            response.statusText
+        }
+      }, response.status);
     }
 
     console.error(
@@ -845,21 +1093,53 @@ async function validateKey(request, env) {
         'resposta_invalida_do_bot',
 
       botStatus:
-        response.status
+        response.status,
+
+      diagnostic
     }, 502);
 
   } catch (error) {
     console.error(
       '[KEY VALIDATE WORKER] ERRO NO FETCH PARA O BOT:',
+      error?.name,
       error?.message || error
     );
+
+    /*
+     * AbortError significa timeout.
+     */
+    if (
+      error?.name === 'AbortError'
+    ) {
+      return json({
+        success: false,
+        valid: false,
+
+        reason:
+          'bot_timeout',
+
+        diagnostic: {
+          ...diagnostic,
+
+          botResponseReceived:
+            false
+        }
+      }, 504);
+    }
 
     return json({
       success: false,
       valid: false,
 
       reason:
-        'bot_connection_failed'
+        'bot_connection_failed',
+
+      error:
+        String(
+          error?.message || error
+        ),
+
+      diagnostic
     }, 502);
   }
 }
@@ -910,7 +1190,9 @@ async function proxyDashboard(
     `${config.apiUrl}${pathname}`;
 
   const headers =
-    new Headers(request.headers);
+    new Headers(
+      request.headers
+    );
 
   headers.set(
     'Authorization',
@@ -919,12 +1201,16 @@ async function proxyDashboard(
 
   headers.set(
     'X-Dashboard-User-ID',
-    String(session.discordId)
+    String(
+      session.discordId
+    )
   );
 
   headers.set(
     'X-Dashboard-User-Role',
-    String(session.role || '')
+    String(
+      session.role || ''
+    )
   );
 
   headers.set(
@@ -970,6 +1256,11 @@ async function proxyDashboard(
       'Set-Cookie'
     );
 
+    responseHeaders.set(
+      'Cache-Control',
+      'no-store'
+    );
+
     return new Response(
       response.body,
       {
@@ -1003,7 +1294,10 @@ async function proxyDashboard(
 ========================================================= */
 
 export default {
-  async fetch(request, env) {
+  async fetch(
+    request,
+    env
+  ) {
     const url =
       new URL(request.url);
 
@@ -1016,24 +1310,28 @@ export default {
       pathname
     );
 
-    /* ---------------------------------------------
+    /* =====================================================
        OPTIONS / CORS
-    --------------------------------------------- */
+    ===================================================== */
 
     if (
-      request.method === 'OPTIONS'
+      request.method ===
+      'OPTIONS'
     ) {
       return addCors(
-        new Response(null, {
-          status: 204
-        }),
+        new Response(
+          null,
+          {
+            status: 204
+          }
+        ),
         request
       );
     }
 
-    /* ---------------------------------------------
+    /* =====================================================
        STATUS
-    --------------------------------------------- */
+    ===================================================== */
 
     if (
       pathname ===
@@ -1045,9 +1343,9 @@ export default {
       );
     }
 
-    /* ---------------------------------------------
+    /* =====================================================
        DISCORD LOGIN
-    --------------------------------------------- */
+    ===================================================== */
 
     if (
       pathname ===
@@ -1062,9 +1360,9 @@ export default {
       );
     }
 
-    /* ---------------------------------------------
+    /* =====================================================
        DISCORD CALLBACK
-    --------------------------------------------- */
+    ===================================================== */
 
     if (
       pathname ===
@@ -1076,9 +1374,9 @@ export default {
       );
     }
 
-    /* ---------------------------------------------
+    /* =====================================================
        DISCORD ME
-    --------------------------------------------- */
+    ===================================================== */
 
     if (
       pathname ===
@@ -1093,9 +1391,9 @@ export default {
       );
     }
 
-    /* ---------------------------------------------
+    /* =====================================================
        DISCORD LOGOUT
-    --------------------------------------------- */
+    ===================================================== */
 
     if (
       pathname ===
@@ -1107,21 +1405,23 @@ export default {
       );
     }
 
-    /* ---------------------------------------------
+    /* =====================================================
        KEY VALIDATION
-    --------------------------------------------- */
+    ===================================================== */
 
     if (
       pathname ===
       '/api/v2/keys/validate'
     ) {
       if (
-        request.method !== 'POST'
+        request.method !==
+        'POST'
       ) {
         return addCors(
           json({
             success: false,
             valid: false,
+
             reason:
               'method_not_allowed'
           }, 405),
@@ -1129,18 +1429,21 @@ export default {
         );
       }
 
-      return addCors(
+      const result =
         await validateKey(
           request,
           env
-        ),
+        );
+
+      return addCors(
+        result,
         request
       );
     }
 
-    /* ---------------------------------------------
+    /* =====================================================
        DASHBOARD / RD4X API
-    --------------------------------------------- */
+    ===================================================== */
 
     if (
       pathname.startsWith(
@@ -1160,9 +1463,9 @@ export default {
       );
     }
 
-    /* ---------------------------------------------
+    /* =====================================================
        STATIC ASSETS
-    --------------------------------------------- */
+    ===================================================== */
 
     return env.ASSETS.fetch(
       request
