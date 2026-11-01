@@ -1,9 +1,9 @@
 name = "rd4x-dashboard"
-main = "worker-index.js"
+main = "worker/index.js"
 compatibility_date = "2026-10-31"
 
 [assets]
-directory = "./"
+directory = "."
 binding = "ASSETS"
 
 [vars]
