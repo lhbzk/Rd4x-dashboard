@@ -591,6 +591,10 @@ export default {
     "/api/auth/discord/me" &&
   request.method === "GET"
 ) {
+      console.log(
+  "[AUTH DEBUG] Cookie recebido:",
+  request.headers.get("Cookie")
+);
   const session =
     await getSession(
       request
