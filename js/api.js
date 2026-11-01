@@ -1501,33 +1501,30 @@ const Api = {
   },
 
 
-  /* ==========================================================
-     🔐 AUTENTICAÇÃO
-     ========================================================== */
+/* ==========================================================
+   🔐 AUTENTICAÇÃO
+   ========================================================== */
 
-  async login(
-    payload
-  ) {
+async login() {
 
-    return this._post(
-      '/api/auth/login',
-      payload
+  window.location.href =
+    this._buildUrl(
+      '/api/auth/discord/login'
     );
 
-  },
+},
 
 
-  async logout() {
+async logout() {
 
-    return this._post(
-      '/api/auth/logout',
-      {}
-    );
+  return this._post(
+    '/api/auth/discord/logout',
+    {}
+  );
 
-  },
+},
 
 
-  async getCurrentUser() {
 async getCurrentUser() {
 
   return this._get(
@@ -1535,6 +1532,7 @@ async getCurrentUser() {
   );
 
 },
+
 
 async checkAuth() {
 
@@ -1544,15 +1542,14 @@ async checkAuth() {
 
 },
 
-  async refreshAuth() {
 
-    return this._post(
-      '/api/auth/refresh',
-      {}
-    );
+async refreshAuth() {
 
-  },
+  return this._get(
+    '/api/auth/discord/me'
+  );
 
+},
 
   /* ==========================================================
      🩺 SISTEMA / HEALTH
