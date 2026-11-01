@@ -11,7 +11,6 @@
    ============================================================ */
 
 const CONFIG = {
-
   MOCK_MODE: false,
 
   API_BASE_URL:
@@ -31,7 +30,6 @@ const CONFIG = {
 
   API_VERSION:
     '10.x'
-
 };
 
 
@@ -41,22 +39,17 @@ const CONFIG = {
 
 const Api = {
 
-
   /* ==========================================================
      CONFIG
      ========================================================== */
 
   isMock() {
-
     return CONFIG.MOCK_MODE === true;
-
   },
 
 
   getConfig() {
-
     return {
-
       mockMode:
         CONFIG.MOCK_MODE,
 
@@ -80,45 +73,37 @@ const Api = {
 
       connected:
         !CONFIG.MOCK_MODE
-
     };
-
   },
 
 
   /* ==========================================================
-     UTILITÁRIOS INTERNOS
+     UTILITÁRIOS
      ========================================================== */
 
   _delay(ms = 250) {
-
     return new Promise(
       resolve =>
         setTimeout(resolve, ms)
     );
-
   },
 
 
   _buildUrl(path) {
-
     return (
-      CONFIG.API_BASE_URL
-        .replace(/\/$/, '') +
-      path
+      CONFIG.API_BASE_URL.replace(/\/+$/, '') +
+      '/' +
+      String(path || '').replace(/^\/+/, '')
     );
-
   },
 
 
   _buildQuery(params = {}) {
-
     const query =
       new URLSearchParams();
 
     Object.entries(params || {})
       .forEach(([key, value]) => {
-
         if (
           value === undefined ||
           value === null ||
@@ -131,7 +116,6 @@ const Api = {
           key,
           String(value)
         );
-
       });
 
     const result =
@@ -140,7 +124,6 @@ const Api = {
     return result
       ? `?${result}`
       : '';
-
   },
 
 
@@ -153,23 +136,17 @@ const Api = {
     path,
     body
   ) {
-
     if (CONFIG.MOCK_MODE) {
-
       throw new Error(
         'Requisição real bloqueada em MOCK_MODE'
       );
-
     }
-
 
     const url =
       this._buildUrl(path);
 
-
     const controller =
       new AbortController();
-
 
     const timeout =
       setTimeout(
@@ -177,19 +154,12 @@ const Api = {
         CONFIG.REQUEST_TIMEOUT
       );
 
-
     const options = {
-
       method,
 
       headers: {
-
-        'Content-Type':
-          'application/json',
-
         'Accept':
           'application/json, text/plain, */*'
-
       },
 
       credentials:
@@ -197,62 +167,45 @@ const Api = {
 
       signal:
         controller.signal
-
     };
-
 
     if (
       body !== undefined &&
       body !== null
     ) {
+      options.headers[
+        'Content-Type'
+      ] =
+        'application/json';
 
       options.body =
         JSON.stringify(body);
-
     }
 
-
     try {
-
       const response =
         await fetch(
           url,
           options
         );
 
-
       const text =
         await response.text();
 
-
-      /*
-       * Remove BOM e espaços desnecessários.
-       */
       const cleanText =
         String(text || '')
           .replace(/^\uFEFF/, '')
           .trim();
 
-
       let data = null;
 
-
-      /*
-       * Resposta vazia.
-       */
-      if (!cleanText) {
-
-        data = null;
-
-      } else {
-
+      if (cleanText) {
         try {
-
           data =
-            JSON.parse(cleanText);
-
-        } catch (parseError) {
-
+            JSON.parse(
+              cleanText
+            );
+        } catch {
           console.error(
             `[RD4X API] Resposta não-JSON em ${path}:`,
             cleanText
@@ -261,55 +214,50 @@ const Api = {
           throw new Error(
             `A API retornou uma resposta inválida em ${path}.`
           );
-
         }
-
       }
 
-
-      /*
-       * Verifica HTTP somente depois
-       * de interpretar a resposta.
-       */
       if (!response.ok) {
+        const error =
+          new Error(
+            data?.error ||
+            data?.message ||
+            data?.reason ||
+            `HTTP ${response.status}`
+          );
 
-        throw new Error(
+        error.status =
+          response.status;
 
-          data?.error ||
-          data?.message ||
-          `HTTP ${response.status}`
+        error.data =
+          data;
 
-        );
-
+        throw error;
       }
-
 
       return data;
 
-
     } catch (error) {
-
       if (
         error?.name ===
         'AbortError'
       ) {
+        const timeoutError =
+          new Error(
+            `Tempo limite excedido ao acessar ${path}`
+          );
 
-        throw new Error(
-          `Tempo limite excedido ao acessar ${path}`
-        );
+        timeoutError.status =
+          408;
 
+        throw timeoutError;
       }
-
 
       throw error;
 
-
     } finally {
-
       clearTimeout(timeout);
-
     }
-
   },
 
 
@@ -317,13 +265,11 @@ const Api = {
     path,
     params = {}
   ) {
-
     return this._request(
       'GET',
       path +
-      this._buildQuery(params)
+        this._buildQuery(params)
     );
-
   },
 
 
@@ -331,13 +277,11 @@ const Api = {
     path,
     body = {}
   ) {
-
     return this._request(
       'POST',
       path,
       body
     );
-
   },
 
 
@@ -345,13 +289,11 @@ const Api = {
     path,
     body = {}
   ) {
-
     return this._request(
       'PUT',
       path,
       body
     );
-
   },
 
 
@@ -359,13 +301,11 @@ const Api = {
     path,
     body = {}
   ) {
-
     return this._request(
       'PATCH',
       path,
       body
     );
-
   },
 
 
@@ -373,91 +313,50 @@ const Api = {
     path,
     body
   ) {
-
     return this._request(
       'DELETE',
       path,
       body
     );
-
   },
 
 
   /* ==========================================================
-     OVERVIEW / DASHBOARD
+     OVERVIEW
      ========================================================== */
 
   async getOverview() {
-
     if (CONFIG.MOCK_MODE) {
-
       await this._delay();
 
       return this._computeMockOverview();
-
     }
-
 
     const overviewResponse =
       await this._get(
         '/api/rd4x/overview'
       );
 
-
     let adminsResponse = {
-
       success: true,
-
       data: []
-
     };
 
-
-    /*
-     * Administradores são carregados
-     * separadamente.
-     *
-     * Se esse endpoint falhar,
-     * a Visão Geral continua funcionando.
-     */
-
     try {
-
       adminsResponse =
         await this._get(
           '/api/rd4x/admins'
         );
-
-
-      console.log(
-        '[RD4X] Administradores recebidos:',
-        adminsResponse
-      );
-
-
     } catch (error) {
-
       console.warn(
         '[RD4X] Não foi possível carregar administradores:',
         error
       );
-
-
-      adminsResponse = {
-
-        success: false,
-
-        data: []
-
-      };
-
     }
-
 
     const data =
       overviewResponse?.data ||
       {};
-
 
     const admins =
       Array.isArray(
@@ -466,31 +365,20 @@ const Api = {
         ? adminsResponse.data
         : [];
 
-
     return {
-
       users: {
-
         total:
           Number(data.ativos) || 0,
 
         active:
           Number(data.ativos) || 0,
 
-        blacklisted:
-          0,
-
-        suspended:
-          0,
-
-        expired:
-          0
-
+        blacklisted: 0,
+        suspended: 0,
+        expired: 0
       },
 
-
       tickets: {
-
         total:
           Number(
             data.ticketsAbertos
@@ -501,44 +389,29 @@ const Api = {
             data.ticketsAbertos
           ) || 0,
 
-        inProgress:
-          0,
-
-        waitingUser:
-          0,
-
-        resolved:
-          0,
-
-        closed:
-          0
-
+        inProgress: 0,
+        waitingUser: 0,
+        resolved: 0,
+        closed: 0
       },
 
-
       releases: {
-
         total:
           Number(
             data.execucoes
           ) || 0,
 
-        last24h:
-          0,
+        last24h: 0,
 
         active:
           Number(
             data.execucoes
           ) || 0,
 
-        revoked:
-          0
-
+        revoked: 0
       },
 
-
       incidents: {
-
         total:
           Number(
             data.incidentesAbertos
@@ -548,22 +421,15 @@ const Api = {
           Number(
             data.incidentesAbertos
           ) || 0
-
       },
-
 
       hwid: {
-
-        active:
-          0
-
+        active: 0
       },
-
 
       admins:
         admins.map(
           admin => ({
-
             id:
               admin.id,
 
@@ -596,152 +462,112 @@ const Api = {
               Boolean(
                 admin.isOwner
               )
-
           })
         ),
 
-
       recentActivity: [],
-
       recentTickets: [],
-
       recentReleases: [],
-
       recentIncidents: [],
-
       systemActivity: [],
-
 
       vendas:
         Number(
           data.vendas
         ) || 0,
 
-
       faturamento:
         Number(
           data.faturamento
         ) || 0
-
     };
-
   },
 
 
   /* ==========================================================
-     👥 USUÁRIOS
+     USUÁRIOS
      ========================================================== */
 
   async getUsers(
     params = {}
   ) {
-
     if (CONFIG.MOCK_MODE) {
-
       await this._delay(180);
 
       return {
-
         success: true,
 
         data:
           Array.isArray(
             window.MockData?.users
           )
-            ? MockData.users.slice()
+            ? window.MockData.users.slice()
             : []
-
       };
-
     }
-
 
     return this._get(
       '/api/dashboard/users',
       params
     );
-
   },
 
 
-  async getUser(
-    id
-  ) {
-
+  async getUser(id) {
     return this._get(
       `/api/dashboard/users/${encodeURIComponent(id)}`
     );
-
   },
 
 
-  async getUserByNick(
-    nick
-  ) {
-
+  async getUserByNick(nick) {
     return this._get(
       '/api/dashboard/users',
       { nick }
     );
-
   },
 
 
   /* ==========================================================
-     🎫 TICKETS
+     TICKETS
      ========================================================== */
 
   async getTickets(
     params = {}
   ) {
-
     if (CONFIG.MOCK_MODE) {
-
       await this._delay(180);
 
       return {
-
         success: true,
 
         data:
           Array.isArray(
             window.MockData?.tickets
           )
-            ? MockData.tickets.slice()
+            ? window.MockData.tickets.slice()
             : []
-
       };
-
     }
-
 
     return this._get(
       '/api/dashboard/tickets',
       params
     );
-
   },
 
 
-  async getTicket(
-    id
-  ) {
-
+  async getTicket(id) {
     return this._get(
       `/api/dashboard/tickets/${encodeURIComponent(id)}`
     );
-
   },
 
 
-  async getTicketTranscript(
-    id
-  ) {
-
+  async getTicketTranscript(id) {
     return this._get(
       `/api/dashboard/tickets/${encodeURIComponent(id)}/transcript`
     );
-
   },
 
 
@@ -749,12 +575,10 @@ const Api = {
     id,
     payload = {}
   ) {
-
     return this._post(
       `/api/dashboard/tickets/${encodeURIComponent(id)}/close`,
       payload
     );
-
   },
 
 
@@ -762,213 +586,151 @@ const Api = {
     id,
     payload = {}
   ) {
-
     return this._post(
       `/api/dashboard/tickets/${encodeURIComponent(id)}/reopen`,
       payload
     );
-
   },
 
 
   /* ==========================================================
-     📋 AUDITORIA
+     AUDITORIA
      ========================================================== */
 
   async getAudit(
     params = {}
   ) {
-
     if (CONFIG.MOCK_MODE) {
-
       await this._delay(180);
 
       return {
-
         success: true,
 
         data:
           Array.isArray(
             window.MockData?.audit
           )
-            ? MockData.audit.slice()
+            ? window.MockData.audit.slice()
             : []
-
       };
-
     }
-
 
     return this._get(
       '/api/dashboard/audit',
       params
     );
-
   },
 
 
-  async getAuditEvent(
-    id
-  ) {
-
+  async getAuditEvent(id) {
     return this._get(
       `/api/dashboard/audit/${encodeURIComponent(id)}`
     );
-
   },
 
 
   /* ==========================================================
-     👑 ADMINISTRADORES
+     ADMINISTRADORES
      ========================================================== */
 
   async getAdmins() {
-
     if (CONFIG.MOCK_MODE) {
-
       await this._delay(150);
 
       return {
-
         success: true,
-
         data: []
-
       };
-
     }
-
 
     return this._get(
       '/api/rd4x/admins'
     );
-
   },
 
 
-  async getAdmin(
-    id
-  ) {
-
+  async getAdmin(id) {
     return this._get(
       `/api/dashboard/admins/${encodeURIComponent(id)}`
     );
-
   },
 
 
   /* ==========================================================
-     🚀 RELEASES
+     RELEASES
      ========================================================== */
 
   async getReleases(
     params = {}
   ) {
-
     if (CONFIG.MOCK_MODE) {
-
       await this._delay(160);
 
       return {
-
         success: true,
 
         data:
           Array.isArray(
             window.MockData?.releases
           )
-            ? MockData.releases.slice()
+            ? window.MockData.releases.slice()
             : []
-
       };
-
     }
-
 
     return this._get(
       '/api/dashboard/releases',
       params
     );
-
   },
 
 
-  async getRelease(
-    id
-  ) {
-
+  async getRelease(id) {
     return this._get(
       `/api/dashboard/releases/${encodeURIComponent(id)}`
     );
-
   },
 
 
-  async postRelease(
-    payload
-  ) {
-
+  async postRelease(payload) {
     if (CONFIG.MOCK_MODE) {
-
       await this._delay(400);
 
       return {
-
         success: true,
-
         ok: true,
-
         simulated: true,
-
         message:
           'Release simulada com sucesso.',
-
         payload
-
       };
-
     }
-
 
     return this._post(
       '/api/dashboard/release',
       payload
     );
-
   },
 
 
-  async postRevoke(
-    payload
-  ) {
-
+  async postRevoke(payload) {
     if (CONFIG.MOCK_MODE) {
-
       await this._delay(400);
 
       return {
-
         success: true,
-
         ok: true,
-
         simulated: true,
-
         message:
           'Release revogada (simulação).',
-
         payload
-
       };
-
     }
-
 
     return this._post(
       '/api/dashboard/revoke',
       payload
     );
-
   },
 
 
@@ -976,71 +738,54 @@ const Api = {
     id,
     payload = {}
   ) {
-
     return this._post(
       `/api/dashboard/releases/${encodeURIComponent(id)}/revoke`,
       payload
     );
-
   },
 
 
   /* ==========================================================
-     🚨 INCIDENTES
+     INCIDENTES
      ========================================================== */
 
   async getIncidents(
     params = {}
   ) {
-
     if (CONFIG.MOCK_MODE) {
-
       await this._delay(160);
 
       return {
-
         success: true,
 
         data:
           Array.isArray(
             window.MockData?.incidents
           )
-            ? MockData.incidents.slice()
+            ? window.MockData.incidents.slice()
             : []
-
       };
-
     }
-
 
     return this._get(
       '/api/dashboard/incidents',
       params
     );
-
   },
 
 
-  async getIncident(
-    id
-  ) {
-
+  async getIncident(id) {
     return this._get(
       `/api/dashboard/incidents/${encodeURIComponent(id)}`
     );
-
   },
 
 
-  async createIncident(
-    payload
-  ) {
-
+  async createIncident(payload) {
     return this._post(
       '/api/dashboard/incidents',
       payload
     );
-
   },
 
 
@@ -1048,12 +793,10 @@ const Api = {
     id,
     payload
   ) {
-
     return this._patch(
       `/api/dashboard/incidents/${encodeURIComponent(id)}`,
       payload
     );
-
   },
 
 
@@ -1061,73 +804,52 @@ const Api = {
     id,
     payload = {}
   ) {
-
     return this._post(
       `/api/dashboard/incidents/${encodeURIComponent(id)}/close`,
       payload
     );
-
   },
 
 
   /* ==========================================================
-     💻 HWID
+     HWID
      ========================================================== */
 
   async getHwid(
     params = {}
   ) {
-
     return this._get(
       '/api/dashboard/hwid',
       params
     );
-
   },
 
 
-  async getUserHwid(
-    userId
-  ) {
-
+  async getUserHwid(userId) {
     return this._get(
       `/api/dashboard/users/${encodeURIComponent(userId)}/hwid`
     );
-
   },
 
 
-  async postResetHwid(
-    payload
-  ) {
-
+  async postResetHwid(payload) {
     if (CONFIG.MOCK_MODE) {
-
       await this._delay(400);
 
       return {
-
         success: true,
-
         ok: true,
-
         simulated: true,
-
         message:
           'HWID resetado (simulação).',
-
         payload
-
       };
-
     }
-
 
     return this._post(
       '/api/dashboard/reset-hwid',
       payload
     );
-
   },
 
 
@@ -1135,62 +857,45 @@ const Api = {
     userId,
     payload = {}
   ) {
-
     return this._post(
       `/api/dashboard/users/${encodeURIComponent(userId)}/reset-hwid`,
       payload
     );
-
   },
 
 
   /* ==========================================================
-     ⛔ BLACKLIST
+     BLACKLIST
      ========================================================== */
 
   async getBlacklist(
     params = {}
   ) {
-
     return this._get(
       '/api/dashboard/blacklist',
       params
     );
-
   },
 
 
-  async postBlacklist(
-    payload
-  ) {
-
+  async postBlacklist(payload) {
     if (CONFIG.MOCK_MODE) {
-
       await this._delay(400);
 
       return {
-
         success: true,
-
         ok: true,
-
         simulated: true,
-
         message:
           'Usuário blacklistado (simulação).',
-
         payload
-
       };
-
     }
-
 
     return this._post(
       '/api/dashboard/blacklist',
       payload
     );
-
   },
 
 
@@ -1198,46 +903,31 @@ const Api = {
     userId,
     payload = {}
   ) {
-
     return this._post(
       `/api/dashboard/users/${encodeURIComponent(userId)}/blacklist`,
       payload
     );
-
   },
 
 
-  async postUnblacklist(
-    payload
-  ) {
-
+  async postUnblacklist(payload) {
     if (CONFIG.MOCK_MODE) {
-
       await this._delay(400);
 
       return {
-
         success: true,
-
         ok: true,
-
         simulated: true,
-
         message:
           'Usuário removido da blacklist.',
-
         payload
-
       };
-
     }
-
 
     return this._post(
       '/api/dashboard/unblacklist',
       payload
     );
-
   },
 
 
@@ -1245,24 +935,21 @@ const Api = {
     userId,
     payload = {}
   ) {
-
     return this._post(
       `/api/dashboard/users/${encodeURIComponent(userId)}/unblacklist`,
       payload
     );
-
   },
 
 
   /* ==========================================================
-     🔎 BUSCA GLOBAL
+     BUSCA
      ========================================================== */
 
   async search(
     query,
     params = {}
   ) {
-
     return this._get(
       '/api/dashboard/search',
       {
@@ -1270,7 +957,6 @@ const Api = {
         ...params
       }
     );
-
   },
 
 
@@ -1278,7 +964,6 @@ const Api = {
     query,
     params = {}
   ) {
-
     return this._get(
       '/api/dashboard/search/users',
       {
@@ -1286,7 +971,6 @@ const Api = {
         ...params
       }
     );
-
   },
 
 
@@ -1294,7 +978,6 @@ const Api = {
     query,
     params = {}
   ) {
-
     return this._get(
       '/api/dashboard/search/tickets',
       {
@@ -1302,7 +985,6 @@ const Api = {
         ...params
       }
     );
-
   },
 
 
@@ -1310,7 +992,6 @@ const Api = {
     query,
     params = {}
   ) {
-
     return this._get(
       '/api/dashboard/search/audit',
       {
@@ -1318,147 +999,121 @@ const Api = {
         ...params
       }
     );
-
   },
 
 
   /* ==========================================================
-     📊 ESTATÍSTICAS
+     ESTATÍSTICAS
      ========================================================== */
 
   async getStats(
     params = {}
   ) {
-
     return this._get(
       '/api/dashboard/stats',
       params
     );
-
   },
 
 
   async getStatsOverview(
     params = {}
   ) {
-
     return this._get(
       '/api/dashboard/stats/overview',
       params
     );
-
   },
 
 
   async getStatsUsers(
     params = {}
   ) {
-
     return this._get(
       '/api/dashboard/stats/users',
       params
     );
-
   },
 
 
   async getStatsTickets(
     params = {}
   ) {
-
     return this._get(
       '/api/dashboard/stats/tickets',
       params
     );
-
   },
 
 
   async getStatsReleases(
     params = {}
   ) {
-
     return this._get(
       '/api/dashboard/stats/releases',
       params
     );
-
   },
 
 
   async getStatsIncidents(
     params = {}
   ) {
-
     return this._get(
       '/api/dashboard/stats/incidents',
       params
     );
-
   },
 
 
   /* ==========================================================
-     📜 TRANSCRIÇÕES
+     TRANSCRIÇÕES
      ========================================================== */
 
   async getTranscripts(
     params = {}
   ) {
-
     if (CONFIG.MOCK_MODE) {
-
       await this._delay(160);
 
       return {
-
         success: true,
 
         data:
           Array.isArray(
             window.MockData?.transcripts
           )
-            ? MockData.transcripts.slice()
+            ? window.MockData.transcripts.slice()
             : []
-
       };
-
     }
-
 
     return this._get(
       '/api/dashboard/transcripts',
       params
     );
-
   },
 
 
-  async getTranscript(
-    id
-  ) {
-
+  async getTranscript(id) {
     return this._get(
       `/api/dashboard/transcripts/${encodeURIComponent(id)}`
     );
-
   },
 
 
   /* ==========================================================
-     ⚙️ AÇÕES ADMINISTRATIVAS
+     AÇÕES ADMINISTRATIVAS
      ========================================================== */
 
   async executeAction(
     action,
     payload = {}
   ) {
-
     return this._post(
       `/api/dashboard/actions/${encodeURIComponent(action)}`,
       payload
     );
-
   },
 
 
@@ -1466,12 +1121,10 @@ const Api = {
     userId,
     payload = {}
   ) {
-
     return this._post(
       `/api/dashboard/users/${encodeURIComponent(userId)}/suspend`,
       payload
     );
-
   },
 
 
@@ -1479,12 +1132,10 @@ const Api = {
     userId,
     payload = {}
   ) {
-
     return this._post(
       `/api/dashboard/users/${encodeURIComponent(userId)}/unsuspend`,
       payload
     );
-
   },
 
 
@@ -1492,192 +1143,152 @@ const Api = {
     userId,
     payload = {}
   ) {
-
     return this._delete(
       `/api/dashboard/users/${encodeURIComponent(userId)}`,
       payload
     );
-
   },
 
 
   /* ==========================================================
-     🔐 AUTENTICAÇÃO
+     AUTENTICAÇÃO DISCORD
      ========================================================== */
 
   async login() {
-
     window.location.href =
       this._buildUrl(
         '/api/auth/discord/login'
       );
-
   },
 
 
   async logout() {
-
     return this._post(
       '/api/auth/discord/logout',
       {}
     );
-
   },
 
 
   async getCurrentUser() {
-
     return this._get(
       '/api/auth/discord/me'
     );
-
   },
 
 
   async checkAuth() {
-
     return this._get(
       '/api/auth/discord/me'
     );
-
   },
 
 
   async refreshAuth() {
-
     return this._get(
       '/api/auth/discord/me'
     );
-
   },
 
 
   /* ==========================================================
-     🔑 VALIDAÇÃO DA KEY RD4X
+     KEY RD4X
      ========================================================== */
 
   async validateKey(
     key,
     hwid = null
   ) {
-
     const cleanKey =
       String(
         key || ''
       ).trim();
 
-
     if (!cleanKey) {
-
       return {
-
         success: false,
-
         valid: false,
-
         reason:
           'key_ausente'
-
       };
-
     }
 
-
     const payload = {
-
       key:
         cleanKey
-
     };
-
 
     if (
       hwid !== undefined &&
       hwid !== null &&
       String(hwid).trim()
     ) {
-
       payload.hwid =
         String(
           hwid
         ).trim();
-
     }
-
 
     return this._post(
       '/api/v2/keys/validate',
       payload
     );
-
   },
 
 
   /* ==========================================================
-     🩺 SISTEMA / HEALTH
+     SISTEMA
      ========================================================== */
 
   async getHealth() {
-
     return this._get(
       '/api/dashboard/health'
     );
-
   },
 
 
   async getSystemStatus() {
-
     return this._get(
       '/api/dashboard/system'
     );
-
   },
 
 
   /* ==========================================================
-     📦 MOCK OVERVIEW
-     Mantido apenas para compatibilidade.
+     MOCK
      ========================================================== */
 
   _computeMockOverview() {
-
     const users =
       Array.isArray(
         window.MockData?.users
       )
-        ? MockData.users
+        ? window.MockData.users
         : [];
-
 
     const tickets =
       Array.isArray(
         window.MockData?.tickets
       )
-        ? MockData.tickets
+        ? window.MockData.tickets
         : [];
-
 
     const releases =
       Array.isArray(
         window.MockData?.releases
       )
-        ? MockData.releases
+        ? window.MockData.releases
         : [];
-
 
     const incidents =
       Array.isArray(
         window.MockData?.incidents
       )
-        ? MockData.incidents
+        ? window.MockData.incidents
         : [];
 
-
     return {
-
       users: {
-
         total:
           users.length,
 
@@ -1704,12 +1315,9 @@ const Api = {
             u =>
               u.status === 'Expirado'
           ).length
-
       },
 
-
       tickets: {
-
         total:
           tickets.length,
 
@@ -1744,12 +1352,9 @@ const Api = {
             t =>
               t.status === 'Fechado'
           ).length
-
       },
 
-
       releases: {
-
         total:
           releases.length,
 
@@ -1774,12 +1379,9 @@ const Api = {
             r =>
               r.status === 'Revogada'
           ).length
-
       },
 
-
       incidents: {
-
         total:
           incidents.length,
 
@@ -1789,29 +1391,20 @@ const Api = {
               i.status === 'Aberto' ||
               i.status === 'Investigando'
           ).length
-
       },
 
-
       hwid: {
-
         active:
           users.filter(
             u =>
               u.hwid
           ).length
-
       },
 
-
       admins: [],
-
       recentActivity: [],
-
       recentTickets: [],
-
       recentReleases: [],
-
       recentIncidents: [],
 
       releaseVolumeAlert:
@@ -1820,11 +1413,8 @@ const Api = {
       systemActivity:
         window.MockData?.systemActivity ||
         []
-
     };
-
   }
-
 };
 
 
@@ -1836,4 +1426,4 @@ window.CONFIG =
   CONFIG;
 
 window.Api =
-  Api; 
+  Api;
