@@ -14,13 +14,12 @@ export default {
     /*
      * A autorização do Discord permanece válida por longo prazo.
      *
-     * A Key RD4X NÃO é salva nessa sessão.
-     * Portanto, ao entrar novamente no Dashboard,
-     * o usuário continuará precisando informar a Key.
+     * A RD4X Key não é armazenada no cookie.
+     * Portanto, a Key continua sendo solicitada
+     * pelo Dashboard quando necessário.
      */
     const SESSION_MAX_AGE =
       10 * 365 * 24 * 60 * 60;
-
 
     // =========================================================
     // RESPOSTAS
@@ -32,38 +31,28 @@ export default {
         {
           status,
           headers: {
-            "Content-Type":
-              "application/json; charset=utf-8",
-
-            "Cache-Control":
-              "no-store, no-cache, must-revalidate",
-
-            "Pragma":
-              "no-cache",
-
-            "Expires":
-              "0",
-
+            "Content-Type": "application/json; charset=utf-8",
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
             ...extraHeaders
           }
         }
       );
     }
 
-
-    function redirect(location, headers = {}) {
+    function redirect(location, extraHeaders = {}) {
       return new Response(null, {
         status: 302,
         headers: {
-          Location: location,
-          ...headers
+          "Location": location,
+          ...extraHeaders
         }
       });
     }
 
-
     // =========================================================
-    // CRIPTOGRAFIA DA SESSÃO
+    // BASE64URL
     // =========================================================
 
     function base64urlEncode(bytes) {
@@ -79,147 +68,118 @@ export default {
         .replace(/=+$/g, "");
     }
 
-
     function base64urlDecode(value) {
       const normalized =
-        value
-          .replace(/-/g, "+")
-          .replace(/_/g, "/") +
-        "=".repeat(
-          (4 - (value.length % 4)) % 4
-        );
+        value.replace(/-/g, "+").replace(/_/g, "/") +
+        "=".repeat((4 - (value.length % 4)) % 4);
 
-      const binary =
-        atob(normalized);
+      const binary = atob(normalized);
 
-      const bytes =
-        new Uint8Array(
-          binary.length
-        );
+      const bytes = new Uint8Array(binary.length);
 
-      for (
-        let i = 0;
-        i < binary.length;
-        i++
-      ) {
-        bytes[i] =
-          binary.charCodeAt(i);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
       }
 
       return bytes;
     }
 
+    // =========================================================
+    // HMAC
+    // =========================================================
 
     async function hmac(message) {
-      const key =
-        await crypto.subtle.importKey(
-          "raw",
-          new TextEncoder().encode(
-            API_KEY
-          ),
-          {
-            name: "HMAC",
-            hash: "SHA-256"
-          },
-          false,
-          ["sign"]
-        );
+      if (!API_KEY) {
+        throw new Error("DASHBOARD_API_KEY não configurada.");
+      }
 
-      const signature =
-        await crypto.subtle.sign(
-          "HMAC",
-          key,
-          new TextEncoder().encode(
-            message
-          )
-        );
+      const key = await crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(API_KEY),
+        {
+          name: "HMAC",
+          hash: "SHA-256"
+        },
+        false,
+        ["sign"]
+      );
+
+      const signature = await crypto.subtle.sign(
+        "HMAC",
+        key,
+        new TextEncoder().encode(message)
+      );
 
       return base64urlEncode(
-        new Uint8Array(
-          signature
-        )
+        new Uint8Array(signature)
       );
     }
 
+    // =========================================================
+    // SESSÃO DISCORD
+    // =========================================================
 
     async function createSession(user) {
-      const now =
-        Date.now();
+      const now = Date.now();
 
       const payload = {
-        sub:
-          String(user.id),
+        sub: String(user.id),
 
         username:
-          user.username ||
-          "",
+          user.username || "",
 
         globalName:
-          user.globalName ||
-          null,
+          user.globalName || null,
 
         avatar:
-          user.avatar ||
-          null,
+          user.avatar || null,
 
         role:
-          user.role ||
-          "Administrador",
+          user.role || "Administrador",
 
         isOwner:
-          Boolean(
-            user.isOwner
-          ),
+          Boolean(user.isOwner),
 
         iat:
           now,
 
         exp:
-          now +
-          SESSION_MAX_AGE * 1000
+          now + SESSION_MAX_AGE * 1000
       };
 
-      const encoded =
-        base64urlEncode(
-          new TextEncoder().encode(
-            JSON.stringify(
-              payload
-            )
-          )
-        );
+      const encoded = base64urlEncode(
+        new TextEncoder().encode(
+          JSON.stringify(payload)
+        )
+      );
 
-      const signature =
-        await hmac(
-          encoded
-        );
+      const signature = await hmac(encoded);
 
       return `${encoded}.${signature}`;
     }
 
-
     async function verifySession(token) {
-      if (!token) {
+      if (!token || !API_KEY) {
         return null;
       }
 
-      const parts =
-        token.split(".");
+      const parts = token.split(".");
 
-      if (
-        parts.length !== 2
-      ) {
+      if (parts.length !== 2) {
         return null;
       }
 
-      const [
-        encoded,
-        receivedSignature
-      ] = parts;
+      const encoded = parts[0];
+      const receivedSignature = parts[1];
 
-      const expectedSignature =
-        await hmac(
-          encoded
-        );
+      let expectedSignature;
+
+      try {
+        expectedSignature =
+          await hmac(encoded);
+      } catch {
+        return null;
+      }
 
       if (
         receivedSignature !==
@@ -229,65 +189,74 @@ export default {
       }
 
       try {
-        const payload =
-          JSON.parse(
-            new TextDecoder().decode(
-              base64urlDecode(
-                encoded
-              )
-            )
-          );
+        const payload = JSON.parse(
+          new TextDecoder().decode(
+            base64urlDecode(encoded)
+          )
+        );
 
         if (
-          !payload?.sub ||
-          !payload?.exp ||
-          Date.now() >
-            payload.exp
+          !payload ||
+          !payload.sub ||
+          !payload.exp
         ) {
           return null;
         }
 
-        return payload;
+        if (Date.now() > payload.exp) {
+          return null;
+        }
 
+        return payload;
       } catch {
         return null;
       }
     }
 
-
     function getCookie(request, name) {
       const cookieHeader =
-        request.headers.get(
-          "Cookie"
-        ) || "";
+        request.headers.get("Cookie") || "";
 
-      const match =
-        cookieHeader.match(
-          new RegExp(
-            `(?:^|;\\s*)${name}=([^;]+)`
-          )
-        );
+      if (!cookieHeader) {
+        return null;
+      }
 
-      return match
-        ? decodeURIComponent(
-            match[1]
-          )
-        : null;
+      const cookies =
+        cookieHeader.split(";");
+
+      for (const cookie of cookies) {
+        const index = cookie.indexOf("=");
+
+        if (index === -1) {
+          continue;
+        }
+
+        const key =
+          cookie.slice(0, index).trim();
+
+        if (key !== name) {
+          continue;
+        }
+
+        const value =
+          cookie.slice(index + 1).trim();
+
+        try {
+          return decodeURIComponent(value);
+        } catch {
+          return value;
+        }
+      }
+
+      return null;
     }
-
 
     async function getSession(request) {
       const token =
-        getCookie(
-          request,
-          "rd4x_session"
-        );
+        getCookie(request, "rd4x_session");
 
-      return verifySession(
-        token
-      );
+      return verifySession(token);
     }
-
 
     // =========================================================
     // OAUTH STATE
@@ -295,88 +264,77 @@ export default {
 
     async function createOAuthState() {
       const payload = {
-        iat:
-          Date.now(),
+        iat: Date.now(),
 
-        nonce:
-          base64urlEncode(
-            crypto.getRandomValues(
-              new Uint8Array(24)
-            )
+        nonce: base64urlEncode(
+          crypto.getRandomValues(
+            new Uint8Array(24)
           )
+        )
       };
 
-      const encoded =
-        base64urlEncode(
-          new TextEncoder().encode(
-            JSON.stringify(
-              payload
-            )
-          )
-        );
+      const encoded = base64urlEncode(
+        new TextEncoder().encode(
+          JSON.stringify(payload)
+        )
+      );
 
       const signature =
-        await hmac(
-          encoded
-        );
+        await hmac(encoded);
 
       return `${encoded}.${signature}`;
     }
 
-
     async function verifyOAuthState(state) {
-      if (!state) {
+      if (!state || !API_KEY) {
         return false;
       }
 
       const parts =
         state.split(".");
 
-      if (
-        parts.length !== 2
-      ) {
+      if (parts.length !== 2) {
         return false;
       }
 
-      const [
-        encoded,
-        receivedSignature
-      ] = parts;
+      const encoded = parts[0];
+      const receivedSignature = parts[1];
 
-      const expected =
-        await hmac(
-          encoded
-        );
+      let expectedSignature;
+
+      try {
+        expectedSignature =
+          await hmac(encoded);
+      } catch {
+        return false;
+      }
 
       if (
         receivedSignature !==
-        expected
+        expectedSignature
       ) {
         return false;
       }
 
       try {
-        const data =
-          JSON.parse(
-            new TextDecoder().decode(
-              base64urlDecode(
-                encoded
-              )
-            )
-          );
-
-        return (
-          data?.iat &&
-          Date.now() -
-            data.iat <
-            10 * 60 * 1000
+        const data = JSON.parse(
+          new TextDecoder().decode(
+            base64urlDecode(encoded)
+          )
         );
 
+        if (!data?.iat) {
+          return false;
+        }
+
+        return (
+          Date.now() - data.iat <
+          10 * 60 * 1000
+        );
       } catch {
         return false;
       }
     }
-
 
     // =========================================================
     // LOGIN DISCORD
@@ -387,17 +345,8 @@ export default {
         "/api/auth/discord/login" &&
       request.method === "GET"
     ) {
-
-      /*
-       * Se o usuário já autorizou o Discord anteriormente,
-       * não fazemos OAuth novamente.
-       *
-       * Ele vai direto para a tela da Key.
-       */
       const existingSession =
-        await getSession(
-          request
-        );
+        await getSession(request);
 
       if (existingSession) {
         return redirect(
@@ -405,11 +354,7 @@ export default {
         );
       }
 
-
-      if (
-        !API_KEY ||
-        !API_URL
-      ) {
+      if (!API_KEY || !API_URL) {
         return json(
           {
             success: false,
@@ -420,20 +365,16 @@ export default {
         );
       }
 
-
       const clientId =
         String(
-          env.DISCORD_CLIENT_ID ||
-            ""
+          env.DISCORD_CLIENT_ID || ""
         ).trim();
-
 
       const redirectUri =
         String(
           env.DISCORD_OAUTH_REDIRECT_URI ||
             `${DASHBOARD_URL}/api/auth/discord/callback`
         ).trim();
-
 
       if (!clientId) {
         return json(
@@ -446,34 +387,41 @@ export default {
         );
       }
 
-
       const state =
         await createOAuthState();
 
-
       const params =
-        new URLSearchParams({
-          client_id:
-            clientId,
+        new URLSearchParams();
 
-          response_type:
-            "code",
+      params.set(
+        "client_id",
+        clientId
+      );
 
-          redirect_uri:
-            redirectUri,
+      params.set(
+        "response_type",
+        "code"
+      );
 
-          scope:
-            "identify",
+      params.set(
+        "redirect_uri",
+        redirectUri
+      );
 
-          state
-        });
+      params.set(
+        "scope",
+        "identify"
+      );
 
+      params.set(
+        "state",
+        state
+      );
 
       return redirect(
         `https://discord.com/oauth2/authorize?${params.toString()}`
       );
     }
-
 
     // =========================================================
     // CALLBACK DISCORD
@@ -484,24 +432,14 @@ export default {
         "/api/auth/discord/callback" &&
       request.method === "GET"
     ) {
-
       const code =
-        url.searchParams.get(
-          "code"
-        );
-
+        url.searchParams.get("code");
 
       const state =
-        url.searchParams.get(
-          "state"
-        );
-
+        url.searchParams.get("state");
 
       const oauthError =
-        url.searchParams.get(
-          "error"
-        );
-
+        url.searchParams.get("error");
 
       if (oauthError) {
         return redirect(
@@ -509,22 +447,14 @@ export default {
         );
       }
 
-
-      if (
-        !code ||
-        !state
-      ) {
+      if (!code || !state) {
         return redirect(
           `${DASHBOARD_URL}/#/login?error=oauth_invalido`
         );
       }
 
-
       const validState =
-        await verifyOAuthState(
-          state
-        );
-
+        await verifyOAuthState(state);
 
       if (!validState) {
         return redirect(
@@ -532,32 +462,24 @@ export default {
         );
       }
 
-
-      if (
-        !API_KEY ||
-        !API_URL
-      ) {
+      if (!API_KEY || !API_URL) {
         return redirect(
           `${DASHBOARD_URL}/#/login?error=worker_config`
         );
       }
 
-
       try {
-
         const redirectUri =
           String(
             env.DISCORD_OAUTH_REDIRECT_URI ||
               `${DASHBOARD_URL}/api/auth/discord/callback`
           ).trim();
 
-
         const response =
           await fetch(
             `${API_URL}/api/auth/discord/exchange`,
             {
-              method:
-                "POST",
+              method: "POST",
 
               headers: {
                 "Authorization":
@@ -573,45 +495,35 @@ export default {
                   "no-cache"
               },
 
-              body:
-                JSON.stringify({
-                  code,
-                  redirectUri
-                })
+              body: JSON.stringify({
+                code,
+                redirectUri
+              })
             }
           );
-
 
         const text =
           await response.text();
 
-
-        let data;
-
+        let data = null;
 
         try {
           data =
-            JSON.parse(
-              text
-            );
-
+            JSON.parse(text);
         } catch {
           data = null;
         }
-
 
         if (
           !response.ok ||
           !data?.success ||
           !data?.data?.id
         ) {
-
           console.error(
-            "[WORKER OAUTH] Bot recusou OAuth:",
+            "[WORKER OAUTH]",
             response.status,
             data
           );
-
 
           return redirect(
             `${DASHBOARD_URL}/#/login?error=${encodeURIComponent(
@@ -621,52 +533,31 @@ export default {
           );
         }
 
-
-        /*
-         * A sessão Discord é criada somente aqui.
-         *
-         * Ela não contém a RD4X Key.
-         */
         const session =
           await createSession(
             data.data
           );
 
+        const cookie = [
+          `rd4x_session=${encodeURIComponent(session)}`,
+          "HttpOnly",
+          "Secure",
+          "SameSite=Lax",
+          "Path=/",
+          `Max-Age=${SESSION_MAX_AGE}`
+        ].join("; ");
 
-        const cookie =
-          [
-            `rd4x_session=${encodeURIComponent(session)}`,
-            "HttpOnly",
-            "Secure",
-            "SameSite=Lax",
-            "Path=/",
-            `Max-Age=${SESSION_MAX_AGE}`
-          ].join("; ");
-
-
-        /*
-         * IMPORTANTE:
-         *
-         * Não vai mais para #/dashboard.
-         * Depois de autorizar o Discord,
-         * o usuário precisa informar a Key.
-         */
         return redirect(
           `${DASHBOARD_URL}/#/key`,
           {
-            "Set-Cookie":
-              cookie
+            "Set-Cookie": cookie
           }
         );
-
-
       } catch (error) {
-
         console.error(
           "[WORKER OAUTH CALLBACK]",
           error
         );
-
 
         return redirect(
           `${DASHBOARD_URL}/#/login?error=oauth_erro`
@@ -674,9 +565,8 @@ export default {
       }
     }
 
-
     // =========================================================
-    // USUÁRIO AUTENTICADO
+    // USUÁRIO ATUAL
     // =========================================================
 
     if (
@@ -684,18 +574,8 @@ export default {
         "/api/auth/discord/me" &&
       request.method === "GET"
     ) {
-
-      console.log(
-        "[AUTH DEBUG] Cookie recebido:",
-        request.headers.get("Cookie")
-      );
-
-
       const session =
-        await getSession(
-          request
-        );
-
+        await getSession(request);
 
       if (!session) {
         return json(
@@ -708,7 +588,6 @@ export default {
           401
         );
       }
-
 
       const user = {
         id:
@@ -730,24 +609,19 @@ export default {
           session.role,
 
         isOwner:
-          session.isOwner,
+          Boolean(session.isOwner),
 
         isAdmin:
           true
       };
 
-
       return json({
         success: true,
-
         authenticated: true,
-
         user,
-
         data: user
       });
     }
-
 
     // =========================================================
     // LOGOUT
@@ -758,29 +632,26 @@ export default {
         "/api/auth/discord/logout" &&
       request.method === "POST"
     ) {
-
       return json(
         {
           success: true
         },
         200,
         {
-          "Set-Cookie":
-            [
-              "rd4x_session=",
-              "HttpOnly",
-              "Secure",
-              "SameSite=Lax",
-              "Path=/",
-              "Max-Age=0"
-            ].join("; ")
+          "Set-Cookie": [
+            "rd4x_session=",
+            "HttpOnly",
+            "Secure",
+            "SameSite=Lax",
+            "Path=/",
+            "Max-Age=0"
+          ].join("; ")
         }
       );
     }
 
-
     // =========================================================
-    // VALIDAÇÃO DE KEY RD4X
+    // VALIDAR KEY RD4X
     // =========================================================
 
     if (
@@ -788,17 +659,9 @@ export default {
         "/api/v2/keys/validate" &&
       request.method === "POST"
     ) {
-
       const session =
-        await getSession(
-          request
-        );
+        await getSession(request);
 
-
-      /*
-       * A Key só pode ser validada por alguém
-       * que já tenha autorizado o Discord.
-       */
       if (!session) {
         return json(
           {
@@ -811,11 +674,7 @@ export default {
         );
       }
 
-
-      if (
-        !API_URL ||
-        !API_KEY
-      ) {
+      if (!API_URL || !API_KEY) {
         return json(
           {
             success: false,
@@ -827,43 +686,50 @@ export default {
         );
       }
 
+      let body;
 
       try {
-
-        const body =
+        body =
           await request.json();
-
-
-        const key =
-          String(
-            body?.key || ""
-          ).trim();
-
-
-        const hwid =
-          body?.hwid
-            ? String(
-                body.hwid
-              ).trim()
-            : null;
-
-
-        if (!key) {
-          return json({
-            success: true,
+      } catch {
+        return json(
+          {
+            success: false,
             valid: false,
             reason:
-              "key_ausente"
-          });
-        }
+              "json_invalido"
+          },
+          400
+        );
+      }
 
+      const key =
+        String(
+          body?.key || ""
+        ).trim();
 
+      const hwid =
+        body?.hwid
+          ? String(
+              body.hwid
+            ).trim()
+          : null;
+
+      if (!key) {
+        return json({
+          success: true,
+          valid: false,
+          reason:
+            "key_ausente"
+        });
+      }
+
+      try {
         const response =
           await fetch(
             `${API_URL}/api/v2/keys/validate`,
             {
-              method:
-                "POST",
+              method: "POST",
 
               headers: {
                 "Authorization":
@@ -879,38 +745,28 @@ export default {
                   "no-cache"
               },
 
-              body:
-                JSON.stringify({
-                  key,
+              body: JSON.stringify({
+                key,
 
-                  discordId:
-                    String(
-                      session.sub
-                    ),
+                discordId:
+                  String(session.sub),
 
-                  hwid
-                })
+                hwid
+              })
             }
           );
-
 
         const text =
           await response.text();
 
-
-        let data;
-
+        let data = null;
 
         try {
           data =
-            JSON.parse(
-              text
-            );
-
+            JSON.parse(text);
         } catch {
           data = null;
         }
-
 
         if (!data) {
           return json(
@@ -924,24 +780,15 @@ export default {
           );
         }
 
-
-        /*
-         * A resposta original da API RD4X
-         * é repassada para o app.js.
-         */
         return json(
           data,
           response.status
         );
-
-
       } catch (error) {
-
         console.error(
           "[WORKER KEY VALIDATE]",
           error
         );
-
 
         return json(
           {
@@ -955,13 +802,11 @@ export default {
       }
     }
 
-
     // =========================================================
-    // ROTAS DA API RD4X
+    // ROTAS RD4X
     // =========================================================
 
     const routes = {
-
       "/api/rd4x/overview":
         "/api/dashboard/overview",
 
@@ -1000,7 +845,6 @@ export default {
 
       "/api/rd4x/unblacklist":
         "/api/dashboard/unblacklist",
-
 
       "/api/dashboard/overview":
         "/api/dashboard/overview",
@@ -1042,18 +886,12 @@ export default {
         "/api/dashboard/unblacklist"
     };
 
-
     const targetPath =
       routes[url.pathname];
 
-
     if (targetPath) {
-
       const session =
-        await getSession(
-          request
-        );
-
+        await getSession(request);
 
       if (!session) {
         return json(
@@ -1066,11 +904,7 @@ export default {
         );
       }
 
-
-      if (
-        !API_URL ||
-        !API_KEY
-      ) {
+      if (!API_URL || !API_KEY) {
         return json(
           {
             success: false,
@@ -1081,38 +915,29 @@ export default {
         );
       }
 
-
       try {
-
         const headers =
           new Headers();
-
 
         headers.set(
           "Authorization",
           `Bearer ${API_KEY}`
         );
 
-
         headers.set(
           "Accept",
           "application/json"
         );
-
 
         headers.set(
           "Cache-Control",
           "no-cache"
         );
 
-
         headers.set(
           "X-Dashboard-User-ID",
-          String(
-            session.sub
-          )
+          String(session.sub)
         );
-
 
         headers.set(
           "X-Dashboard-Role",
@@ -1122,7 +947,6 @@ export default {
           )
         );
 
-
         headers.set(
           "X-Dashboard-Owner",
           session.isOwner
@@ -1130,23 +954,16 @@ export default {
             : "false"
         );
 
-
         let body;
 
-
         if (
-          request.method !==
-            "GET" &&
-          request.method !==
-            "HEAD"
+          request.method !== "GET" &&
+          request.method !== "HEAD"
         ) {
-
           body =
             await request.text();
 
-
           if (body) {
-
             headers.set(
               "Content-Type",
               request.headers.get(
@@ -1156,7 +973,6 @@ export default {
             );
           }
         }
-
 
         const apiResponse =
           await fetch(
@@ -1171,10 +987,8 @@ export default {
             }
           );
 
-
         const responseBody =
           await apiResponse.text();
-
 
         return new Response(
           responseBody,
@@ -1200,15 +1014,11 @@ export default {
             }
           }
         );
-
-
       } catch (error) {
-
         console.error(
           "[WORKER API]",
           error
         );
-
 
         return json(
           {
@@ -1221,60 +1031,43 @@ export default {
       }
     }
 
-
     // =========================================================
     // ASSETS
     // =========================================================
 
     if (env.ASSETS) {
-
       const response =
-        await env.ASSETS.fetch(
-          request
-        );
-
+        await env.ASSETS.fetch(request);
 
       const contentType =
         response.headers.get(
           "Content-Type"
         ) || "";
 
-
       if (
-        contentType.includes(
-          "text/html"
-        ) ||
-        contentType.includes(
-          "javascript"
-        ) ||
-        contentType.includes(
-          "text/css"
-        )
+        contentType.includes("text/html") ||
+        contentType.includes("javascript") ||
+        contentType.includes("text/css")
       ) {
-
         const headers =
           new Headers(
             response.headers
           );
-
 
         headers.set(
           "Cache-Control",
           "no-store, no-cache, must-revalidate"
         );
 
-
         headers.set(
           "Pragma",
           "no-cache"
         );
 
-
         headers.set(
           "Expires",
           "0"
         );
-
 
         return new Response(
           response.body,
@@ -1290,10 +1083,8 @@ export default {
         );
       }
 
-
       return response;
     }
-
 
     return new Response(
       "RD4X Dashboard online, mas o binding ASSETS não foi encontrado.",
